@@ -1220,8 +1220,10 @@ const bookmarkletSrc = `(function(){
 })();`;
 
 const encoded = 'javascript:' + encodeURIComponent(bookmarkletSrc);
-document.getElementById('bookmarkletLink').href = encoded;
-document.getElementById('bookmarkletCode').textContent = bookmarkletSrc.substring(0, 120) + '…';
+const _bl = document.getElementById('bookmarkletLink');
+if (_bl) _bl.href = encoded;
+const _bc = document.getElementById('bookmarkletCode');
+if (_bc) _bc.textContent = bookmarkletSrc.substring(0, 120) + '…';
 
 function copyBookmarklet() {
   navigator.clipboard.writeText(encoded).then(() => {
@@ -1280,10 +1282,10 @@ document.addEventListener('drop', e => {
     if (f) handleFile(f);
   }
 });
-document.getElementById('fileInput').addEventListener('change', function() {
-  if (this.files[0]) handleFile(this.files[0]);
-});
-document.getElementById('parsePasteBtn').addEventListener('click', parsePaste);
+const _fi = document.getElementById('fileInput');
+if (_fi) _fi.addEventListener('change', function() { if (this.files[0]) handleFile(this.files[0]); });
+const _ppb = document.getElementById('parsePasteBtn');
+if (_ppb) _ppb.addEventListener('click', parsePaste);
 
 function handleFile(file) {
   pendingSourceName = file.name;
