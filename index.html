@@ -979,7 +979,7 @@
       </div>
       <textarea class="paste-area" id="pasteArea" placeholder="Paste the copied data here after running the bookmarklet on your timetable page…" style="height:100px;"></textarea>
       <div style="margin-top:12px;display:flex;gap:8px;">
-        <button class="btn btn-accent" onclick="parsePaste()">Parse Pasted Data →</button>
+        <button class="btn btn-accent" id="parsePasteBtn">Parse Pasted Data →</button>
         <button class="btn btn-outline" onclick="clearAll()">Clear</button>
       </div>
     </div>
@@ -1175,14 +1175,30 @@ const AUTO_MAP_HINTS = {
 // ═══════════════════════════════════════════
 // FILE UPLOAD
 // ═══════════════════════════════════════════
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('fileInput');
-
-dropzone.addEventListener('click', () => fileInput.click());
-dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if(f) handleFile(f); });
-fileInput.addEventListener('change', () => { if(fileInput.files[0]) handleFile(fileInput.files[0]); });
+// Use event delegation on document so bindings work regardless of
+// whether the dropzone pane is currently visible or hidden.
+document.addEventListener('click', e => {
+  const dz = e.target.closest('#dropzone');
+  if (dz) { e.preventDefault(); document.getElementById('fileInput').click(); }
+});
+document.addEventListener('dragover', e => {
+  if (e.target.closest('#dropzone')) { e.preventDefault(); document.getElementById('dropzone').classList.add('drag-over'); }
+});
+document.addEventListener('dragleave', e => {
+  if (e.target.closest('#dropzone')) { document.getElementById('dropzone').classList.remove('drag-over'); }
+});
+document.addEventListener('drop', e => {
+  if (e.target.closest('#dropzone')) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  }
+});
+document.getElementById('fileInput').addEventListener('change', function() {
+  if (this.files[0]) handleFile(this.files[0]);
+});
+document.getElementById('parsePasteBtn').addEventListener('click', parsePaste);
 
 function handleFile(file) {
   const reader = new FileReader();
