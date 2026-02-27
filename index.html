@@ -7,51 +7,54 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0e0f13;
-    --surface: #16181f;
-    --surface2: #1e2029;
-    --border: #2a2d3a;
-    --accent: #e8c547;
-    --accent2: #4ec9b0;
-    --accent3: #c586c0;
-    --text: #e0e2ea;
-    --muted: #6b7080;
-    --danger: #f47067;
-    --success: #4ec9b0;
+    /* University of Nottingham official palette */
+    --bg: #f0f3f6;           /* 5% tint of Nottingham Blue - recommended digital bg */
+    --surface: #ffffff;       /* white card surfaces */
+    --surface2: #e6eaf0;      /* slightly deeper for inset elements */
+    --border: #c8d0db;        /* soft blue-grey border */
+    --accent: #10263B;        /* Nottingham Blue - primary */
+    --accent-mid: #1e4068;    /* 80% tint - for hover states */
+    --accent2: #005F36;       /* Forest Green - supporting */
+    --accent3: #DEB406;       /* Rebels Gold - supporting */
+    --text: #10263B;          /* Nottingham Blue for body text (brand guideline) */
+    --muted: #5a6e82;         /* muted blue-grey */
+    --danger: #B91C2E;        /* Jubilee Red - for clashes/errors */
+    --success: #005F36;       /* Forest Green */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
-    font-weight: 300;
+    font-weight: 400;
+    font-size: 16px;
     min-height: 100vh;
   }
 
   /* ── Layout ── */
   header {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 3px solid var(--accent3);
     padding: 20px 40px;
     display: flex;
     align-items: center;
     gap: 16px;
-    background: var(--surface);
+    background: var(--accent);
   }
   header h1 {
     font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
+    font-size: 1.7rem;
     font-weight: 900;
     letter-spacing: -0.02em;
-    color: var(--accent);
+    color: #ffffff;
   }
   header span {
     font-family: 'DM Mono', monospace;
     font-size: 0.7rem;
-    color: var(--muted);
-    background: var(--surface2);
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.1);
     padding: 3px 8px;
     border-radius: 4px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255,255,255,0.2);
   }
 
   main { padding: 40px; max-width: 1400px; margin: 0 auto; }
@@ -68,16 +71,18 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 28px;
+    box-shadow: 0 2px 8px rgba(16,38,59,0.07);
   }
   .panel h2 {
     font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--accent);
     margin-bottom: 16px;
+    font-weight: 600;
   }
-  .panel p { color: var(--muted); font-size: 0.875rem; line-height: 1.6; margin-bottom: 16px; }
+  .panel p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px; }
 
   .dropzone {
     border: 2px dashed var(--border);
@@ -87,18 +92,19 @@
     cursor: pointer;
     transition: all 0.2s;
     color: var(--muted);
-    font-size: 0.875rem;
+    font-size: 0.9rem;
+    background: var(--bg);
   }
   .dropzone:hover, .dropzone.drag-over {
     border-color: var(--accent);
-    background: rgba(232,197,71,0.04);
+    background: rgba(16,38,59,0.05);
     color: var(--accent);
   }
   .dropzone input { display: none; }
   .dropzone .icon { font-size: 2rem; margin-bottom: 8px; }
 
   .bookmarklet-box {
-    background: var(--surface2);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 16px;
@@ -124,16 +130,16 @@
     transition: all 0.15s;
     font-family: 'DM Sans', sans-serif;
   }
-  .btn-accent { background: var(--accent); color: #0e0f13; }
-  .btn-accent:hover { background: #f0d060; }
+  .btn-accent { background: var(--accent); color: #ffffff; }
+  .btn-accent:hover { background: var(--accent-mid); }
   .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
-  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: rgba(16,38,59,0.04); }
   .btn-sm { padding: 5px 12px; font-size: 0.75rem; }
 
   .drag-link {
     display: inline-block;
     padding: 8px 16px;
-    background: var(--accent3);
+    background: var(--accent);
     color: #fff;
     border-radius: 6px;
     font-size: 0.8rem;
@@ -142,13 +148,13 @@
     text-decoration: none;
     margin-top: 4px;
   }
-  .drag-link:hover { background: #d499cc; }
+  .drag-link:hover { background: var(--accent-mid); }
 
   /* ── Paste area ── */
   textarea.paste-area {
     width: 100%;
     height: 120px;
-    background: var(--surface2);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text);
@@ -163,17 +169,18 @@
 
   /* ── Status bar ── */
   .status-bar {
-    background: var(--surface2);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px 20px;
     font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     color: var(--muted);
     margin-bottom: 32px;
     display: flex;
     align-items: center;
     gap: 12px;
+    box-shadow: 0 1px 4px rgba(16,38,59,0.06);
   }
   .status-bar .dot {
     width: 8px; height: 8px;
@@ -206,7 +213,7 @@
   }
   .map-field select {
     width: 100%;
-    background: var(--surface2);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
     color: var(--text);
@@ -223,7 +230,7 @@
     display: flex;
     gap: 4px;
     margin-bottom: 24px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 2px solid var(--accent);
     padding-bottom: 0;
   }
   .tab {
@@ -239,13 +246,13 @@
     border-bottom: none;
     transition: all 0.15s;
     position: relative;
-    top: 1px;
+    top: 2px;
   }
-  .tab:hover { color: var(--text); }
+  .tab:hover { color: var(--accent); background: rgba(16,38,59,0.05); }
   .tab.active {
-    background: var(--surface);
-    border-color: var(--border);
-    color: var(--accent);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
   }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
@@ -263,6 +270,8 @@
     border-radius: 10px;
     padding: 20px;
     text-align: center;
+    box-shadow: 0 2px 6px rgba(16,38,59,0.07);
+    border-top: 3px solid var(--accent);
   }
   .kpi .val {
     font-family: 'Playfair Display', serif;
@@ -274,7 +283,7 @@
   }
   .kpi .lbl {
     font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--muted);
@@ -287,28 +296,30 @@
     border-collapse: collapse;
     font-size: 0.85rem;
   }
-  thead tr { border-bottom: 2px solid var(--border); }
+  thead tr { border-bottom: 2px solid var(--accent); background: var(--bg); }
   th {
     font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--muted);
+    color: var(--accent);
     text-align: left;
-    padding: 10px 14px;
+    padding: 12px 14px;
     cursor: pointer;
     white-space: nowrap;
     user-select: none;
+    font-weight: 600;
   }
-  th:hover { color: var(--accent); }
-  th.sort-asc::after { content: ' ↑'; color: var(--accent); }
-  th.sort-desc::after { content: ' ↓'; color: var(--accent); }
+  th:hover { color: var(--accent-mid); }
+  th.sort-asc::after { content: ' ↑'; color: var(--accent3); }
+  th.sort-desc::after { content: ' ↓'; color: var(--accent3); }
   td {
-    padding: 10px 14px;
+    padding: 11px 14px;
     border-bottom: 1px solid var(--border);
     vertical-align: middle;
+    font-size: 0.92rem;
   }
-  tbody tr:hover td { background: rgba(255,255,255,0.02); }
+  tbody tr:hover td { background: rgba(16,38,59,0.03); }
   .badge {
     display: inline-block;
     padding: 2px 8px;
@@ -317,9 +328,9 @@
     font-size: 0.68rem;
     font-weight: 500;
   }
-  .badge-teal { background: rgba(78,201,176,0.15); color: var(--accent2); }
-  .badge-yellow { background: rgba(232,197,71,0.15); color: var(--accent); }
-  .badge-purple { background: rgba(197,134,192,0.15); color: var(--accent3); }
+  .badge-teal { background: rgba(0,95,54,0.12); color: var(--accent2); border: 1px solid rgba(0,95,54,0.2); }
+  .badge-yellow { background: rgba(222,180,6,0.15); color: #7a5e00; border: 1px solid rgba(222,180,6,0.3); }
+  .badge-purple { background: rgba(16,38,59,0.1); color: var(--accent); border: 1px solid rgba(16,38,59,0.15); }
 
   /* ── Bar mini charts ── */
   .mini-bar {
@@ -335,7 +346,7 @@
   .mini-bar-fill {
     height: 100%;
     border-radius: 3px;
-    background: var(--accent);
+    background: var(--accent3);
     transition: width 0.4s;
   }
 
@@ -347,8 +358,8 @@
   .heatmap-row { display: flex; gap: 4px; align-items: center; }
   .heatmap-label {
     font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
-    color: var(--muted);
+    font-size: 0.68rem;
+    color: var(--text);
     width: 120px;
     flex-shrink: 0;
     white-space: nowrap;
@@ -373,8 +384,8 @@
   .heatmap-cell:hover { transform: scale(1.2); z-index: 10; }
   .heatmap-week-header {
     font-family: 'DM Mono', monospace;
-    font-size: 0.6rem;
-    color: var(--muted);
+    font-size: 0.62rem;
+    color: var(--accent);
     width: 36px;
     text-align: center;
   }
@@ -393,10 +404,11 @@
     border-radius: 6px;
     color: var(--text);
     font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    padding: 7px 12px;
+    font-size: 0.78rem;
+    padding: 8px 12px;
     outline: none;
     transition: border-color 0.2s;
+    box-shadow: 0 1px 3px rgba(16,38,59,0.06);
   }
   .filter-bar input:focus, .filter-bar select:focus { border-color: var(--accent); }
   .filter-bar input { min-width: 200px; }
@@ -408,7 +420,7 @@
     color: var(--muted);
   }
   .empty-state .big { font-size: 3rem; margin-bottom: 16px; }
-  .empty-state p { font-size: 0.875rem; line-height: 1.6; }
+  .empty-state p { font-size: 0.9rem; line-height: 1.6; }
 
   /* ── Export bar ── */
   .export-bar {
@@ -435,13 +447,115 @@
   }
 
 
+
+  /* ── FAQ Modal ── */
+  .faq-btn {
+    margin-left: auto;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.85);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .faq-btn:hover { background: rgba(255,255,255,0.22); color: #fff; border-color: rgba(255,255,255,0.5); }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-top: 4px solid var(--accent);
+    max-width: 720px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 40px;
+    position: relative;
+    animation: modalIn 0.2s ease;
+    box-shadow: 0 20px 60px rgba(16,38,59,0.2);
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 20px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 1.4rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .modal-close:hover { color: var(--accent); }
+
+  .modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--accent);
+    margin-bottom: 24px;
+    letter-spacing: -0.02em;
+  }
+  .faq-item { margin-bottom: 28px; }
+  .faq-item h3 {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .faq-item p {
+    color: var(--text);
+    font-size: 0.875rem;
+    line-height: 1.7;
+    font-weight: 300;
+  }
+  .faq-item p + p { margin-top: 8px; }
+  .faq-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+  .faq-highlight {
+    background: var(--bg);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 6px 6px 0;
+    padding: 12px 16px;
+    margin-top: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .faq-highlight strong { color: var(--accent); }
   /* ── Clash detection ── */
-  .clash-btn { background: var(--danger); color: #fff; }
-  .clash-btn:hover { background: #ff8a82; }
-  .clash-btn.active { background: #7a1a16; border: 1px solid var(--danger); color: var(--danger); }
-  .clash-badge { background: rgba(244,112,103,0.18); color: var(--danger); border: 1px solid rgba(244,112,103,0.3); }
-  .safe-badge { background: rgba(78,201,176,0.12); color: var(--accent2); }
-  tr.clash-row td { background: rgba(244,112,103,0.08) !important; }
+  .clash-btn { background: var(--danger); color: #fff; border: none; }
+  .clash-btn:hover { background: #9a1525; }
+  .clash-btn.active { background: #f8e8ea; border: 1px solid var(--danger); color: var(--danger); }
+  .clash-badge { background: rgba(185,28,46,0.1); color: var(--danger); border: 1px solid rgba(185,28,46,0.25); }
+  .safe-badge { background: rgba(0,95,54,0.1); color: var(--accent2); border: 1px solid rgba(0,95,54,0.2); }
+  tr.clash-row td { background: rgba(185,28,46,0.05) !important; }
   tr.clash-row td:first-child { border-left: 3px solid var(--danger); }
   .clash-pill {
     display: inline-block;
@@ -449,13 +563,13 @@
     border-radius: 4px;
     font-family: 'DM Mono', monospace;
     font-size: 0.65rem;
-    background: rgba(244,112,103,0.18);
+    background: rgba(185,28,46,0.1);
     color: var(--danger);
-    border: 1px solid rgba(244,112,103,0.3);
+    border: 1px solid rgba(185,28,46,0.25);
     cursor: help;
     margin-left: 6px;
   }
-  .kpi.kpi-clash { border-color: rgba(244,112,103,0.4); }
+  .kpi.kpi-clash { border-top-color: var(--danger); }
   .kpi.kpi-clash .val { color: var(--danger); }
   @media (max-width: 768px) {
     main { padding: 20px; }
@@ -469,7 +583,83 @@
 <header>
   <h1>Timetable Load Analyser</h1>
   <span>v1.0</span>
+  <button class="faq-btn" onclick="document.getElementById('faqModal').classList.add('open')">? FAQ</button>
 </header>
+
+<!-- ── FAQ Modal ── -->
+<div class="modal-overlay" id="faqModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('faqModal').classList.remove('open')">×</button>
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+      <h3>What data does this tool need?</h3>
+      <p>The analyser works with any timetable data that contains at least a <strong>staff name</strong> or <strong>module name</strong> column. It works best when you also have <strong>start time</strong>, <strong>end time</strong>, <strong>date</strong> or <strong>week number</strong>, and <strong>semester</strong> columns — but will do its best with whatever is available.</p>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>How do I get my timetable data in?</h3>
+      <p><strong>Option 1 — File upload:</strong> In your browser, go to your timetable page and use File → Save Page As → "Web Page, Complete" (or "HTML Only"). Then drag that file into the upload panel. The analyser will extract and merge all tables on the page automatically.</p>
+      <p><strong>Option 2 — Bookmarklet:</strong> Drag the purple "🔖 Scrape Timetable" button to your bookmarks bar. Navigate to your timetable page, click the bookmarklet, and it will copy the table data to your clipboard. Paste it back into the analyser.</p>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>My timetable has multiple tables on one page — is that a problem?</h3>
+      <p>No. The analyser detects all tables with the same column structure and merges them into one dataset automatically. Any navigation or summary tables with different columns are ignored. The status bar will confirm how many tables were merged and how many rows were loaded.</p>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>What happens with sessions that have multiple staff?</h3>
+      <p>When a timetable cell contains multiple staff names separated by a line break (a <code>&lt;br&gt;</code> tag in the HTML), the analyser detects this and <strong>splits the session into one row per staff member</strong>. Each person gets their own row carrying the same module, time, room, and other details. The status bar reports how many rows were expanded this way.</p>
+      <p>This means every staff member's contribution is counted individually, even in jointly-taught sessions.</p>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>How does clash detection work?</h3>
+      <p>Clicking <strong>⚡ Detect Clashes</strong> checks whether any staff member appears in two sessions whose times overlap on the same day. It requires start and end times to be mapped.</p>
+      <p>For each staff member it:</p>
+      <div class="faq-highlight">
+        <strong>1. Converts</strong> every session to an absolute time interval (date + start → date + end)<br>
+        <strong>2. Compares</strong> every pair of that person's sessions to find overlaps<br>
+        <strong>3. Flags</strong> any session involved in an overlap with a red ⚠ clash marker<br>
+        <strong>4. Calculates</strong> effective hours by merging overlapping intervals — so double-counted time is removed only once, even if three sessions overlap
+      </div>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>What is the difference between Raw Hours and Effective Hours?</h3>
+      <p><strong>Raw Hours</strong> is the simple sum of all session durations for a staff member — exactly what the timetable records. If someone is listed in two simultaneous 2-hour sessions, raw hours counts 4 hours.</p>
+      <p><strong>Effective Hours</strong> is the actual time a person could physically have taught, after removing impossible overlaps. The same two simultaneous 2-hour sessions would give 2 effective hours. This uses interval merging, so if three sessions overlap in a complex pattern, the deduction is still correct.</p>
+      <p>The difference (shown in red in the Staff tab) is the total time the timetable has that person in two places at once.</p>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>Is my data safe? Does anything leave my computer?</h3>
+      <p>Everything runs entirely in your browser. No data is sent to any server — there is no server. File uploads, paste input, all analysis, and CSV exports happen purely in local JavaScript memory. You can verify this by opening your browser's Network tab (F12) — you will see zero data requests when using the tool.</p>
+      <p>The only external request the page makes is loading the display fonts from Google Fonts when the page first opens.</p>
+    </div>
+
+    <hr class="faq-divider">
+
+    <div class="faq-item">
+      <h3>Can I export the results?</h3>
+      <p>Yes — every tab (By Staff, By Module, By Week, Clashes, Raw Data) has an <strong>Export CSV</strong> button that downloads the current view as a CSV file, ready to open in Excel or any spreadsheet application.</p>
+    </div>
+
+  </div>
+</div>
 
 <main>
 
@@ -1272,10 +1462,11 @@ function renderHeatmap() {
 
   const heatColour = (v, max) => {
     const t = v / max;
-    if (t === 0) return `rgba(42,45,58,0.5)`;
-    const r = Math.round(232 * t + 30 * (1-t));
-    const g = Math.round(197 * t * 0.4 + 201 * (1-t));
-    const b = Math.round(71 * t * 0.2 + 176 * (1-t));
+    if (t === 0) return `rgba(16,38,59,0.07)`;
+    // Gradient: light blue-grey → Nottingham Blue → Rebels Gold at peak
+    const r = Math.round(16 + (222-16)*t);
+    const g = Math.round(38 + (180-38)*t*0.6);
+    const b = Math.round(59 + (6-59)*t);
     return `rgb(${r},${g},${b})`;
   };
 
@@ -1286,8 +1477,9 @@ function renderHeatmap() {
       const k = `${staff}__${wk}`;
       const v = grid[k] ? (metric === 'hours' ? grid[k].hours : grid[k].sessions) : 0;
       const bg = heatColour(v, maxVal);
+      const textCol = v/maxVal > 0.5 ? 'rgba(255,255,255,0.9)' : 'rgba(16,38,59,0.8)';
       const label = v > 0 ? (metric === 'hours' ? v.toFixed(1) : v) : '';
-      return `<div class="heatmap-cell" style="background:${bg}" title="${staff} · Week ${wk}: ${v > 0 ? (metric==='hours' ? v.toFixed(1)+' hrs' : v+' sessions') : 'none'}">${label}</div>`;
+      return `<div class="heatmap-cell" style="background:${bg}" title="${staff} · Week ${wk}: ${v > 0 ? (metric==='hours' ? v.toFixed(1)+' hrs' : v+' sessions') : 'none'}" style="color:${textCol}">${label}</div>`;
     }).join('');
     return `<div class="heatmap-row"><div class="heatmap-label" title="${staff}">${staff}</div>${cells}</div>`;
   }).join('');
@@ -1514,6 +1706,10 @@ function setStatus(type, msg) {
   bar.className = 'status-bar ' + type;
   document.getElementById('statusText').textContent = msg;
 }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('faqModal').classList.remove('open');
+});
 
 function clearAll() {
   rawRows = []; mappedRows = []; columns = [];
