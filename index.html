@@ -549,6 +549,179 @@
     line-height: 1.6;
   }
   .faq-highlight strong { color: var(--accent); }
+
+  /* ── Drill-down side panel ── */
+  .drilldown-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(16,38,59,0.35);
+    z-index: 1500;
+  }
+  .drilldown-overlay.open { display: block; }
+
+  .drilldown-panel {
+    position: fixed;
+    top: 0; right: 0;
+    width: min(560px, 100vw);
+    height: 100vh;
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    box-shadow: -8px 0 40px rgba(16,38,59,0.18);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+    z-index: 1501;
+  }
+  .drilldown-panel.open { transform: translateX(0); }
+
+  .drilldown-header {
+    background: var(--accent);
+    padding: 20px 24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    flex-shrink: 0;
+    border-bottom: 3px solid var(--accent3);
+  }
+  .drilldown-header-text { flex: 1; min-width: 0; }
+  .drilldown-header-text .dd-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
+  }
+  .drilldown-header-text .dd-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .drilldown-close {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    font-size: 1.1rem;
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .drilldown-close:hover { background: rgba(255,255,255,0.28); }
+
+  .drilldown-stats {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .dd-stat {
+    flex: 1;
+    padding: 14px 16px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+  .dd-stat:last-child { border-right: none; }
+  .dd-stat .dd-stat-val {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+  .dd-stat .dd-stat-lbl {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .drilldown-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+  }
+
+  .dd-section-head {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    padding: 14px 20px 8px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .dd-session-row {
+    display: grid;
+    grid-template-columns: 90px 1fr auto;
+    gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    align-items: start;
+    transition: background 0.1s;
+    cursor: default;
+  }
+  .dd-session-row:hover { background: rgba(16,38,59,0.03); }
+  .dd-session-row.is-clash { border-left: 3px solid var(--danger); background: rgba(185,28,46,0.04); }
+
+  .dd-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    font-weight: 600;
+    padding-top: 2px;
+  }
+  .dd-module {
+    font-size: 0.88rem;
+    color: var(--text);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .dd-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .dd-hrs {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+    padding-top: 2px;
+    text-align: right;
+  }
+  .dd-clash-flag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--danger);
+    margin-top: 3px;
+    text-align: right;
+  }
+
+  tbody tr.clickable-row { cursor: pointer; }
+  tbody tr.clickable-row:hover td { background: rgba(16,38,59,0.05) !important; }
+  tbody tr.clickable-row td:first-child {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: rgba(16,38,59,0.25);
+    text-underline-offset: 3px;
+  }
   /* ── Clash detection ── */
   .clash-btn { background: var(--danger); color: #fff; border: none; }
   .clash-btn:hover { background: #9a1525; }
@@ -585,6 +758,20 @@
   <span>v1.0</span>
   <button class="faq-btn" onclick="document.getElementById('faqModal').classList.add('open')">? FAQ</button>
 </header>
+
+<!-- ── Drill-down Panel ── -->
+<div class="drilldown-overlay" id="ddOverlay" onclick="closeDrawer()"></div>
+<div class="drilldown-panel" id="ddPanel">
+  <div class="drilldown-header">
+    <div class="drilldown-header-text">
+      <div class="dd-label" id="ddLabel">Staff Member</div>
+      <div class="dd-title" id="ddTitle">—</div>
+    </div>
+    <button class="drilldown-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drilldown-stats" id="ddStats"></div>
+  <div class="drilldown-body" id="ddBody"></div>
+</div>
 
 <!-- ── FAQ Modal ── -->
 <div class="modal-overlay" id="faqModal" onclick="if(event.target===this)this.classList.remove('open')">
@@ -1235,6 +1422,11 @@ function renderStaffTable() {
   });
 
   const showClash = clashData.run;
+  // Build drill-down index: staff → their sessions
+  window._drillData = window._drillData || {};
+  Object.entries(data).forEach(([name]) => {
+    window._drillData[name] = mappedRows.filter(r => r.staff === name);
+  });
   const rows = Object.entries(data).map(([name, d]) => ({
     name,
     hours: d.hours,
@@ -1242,7 +1434,9 @@ function renderStaffTable() {
     clashSessions: d.clashSessions,
     sessions: d.sessions,
     modules: d.modules.size,
-    semesters: [...d.semesters].join(', ')
+    semesters: [...d.semesters].join(', '),
+    _drillKey: name,
+    _drillLabel: 'Staff Member',
   }));
 
   const maxHrs = Math.max(...rows.map(r => r.hours), 1);
@@ -1282,9 +1476,14 @@ function renderModuleTable() {
     if (r.week) data[r.module].weeks.add(r.week);
   });
 
+  window._drillData = window._drillData || {};
+  Object.entries(data).forEach(([mod]) => {
+    window._drillData[mod] = mappedRows.filter(r => r.module === mod);
+  });
   const rows = Object.entries(data).map(([mod, d]) => ({
     module: mod, sessions: d.sessions, hours: d.hours,
-    staffCount: d.staff.size, weekCount: d.weeks.size
+    staffCount: d.staff.size, weekCount: d.weeks.size,
+    _drillKey: mod, _drillLabel: 'Module',
   }));
 
   const maxHrs = Math.max(...rows.map(r => r.hours), 1);
@@ -1313,9 +1512,14 @@ function renderWeekTable() {
     if (r.module) data[r.week].modules.add(r.module);
   });
 
+  window._drillData = window._drillData || {};
+  Object.entries(data).forEach(([wk]) => {
+    window._drillData['Week ' + wk] = mappedRows.filter(r => String(r.week) === String(wk));
+  });
   const rows = Object.entries(data).sort((a, b) => a[0].localeCompare(b[0], undefined, {numeric:true})).map(([wk, d]) => ({
     week: wk, sessions: d.sessions, hours: d.hours,
-    staffCount: d.staff.size, moduleCount: d.modules.size
+    staffCount: d.staff.size, moduleCount: d.modules.size,
+    _drillKey: 'Week ' + wk, _drillLabel: 'Week',
   }));
 
   const maxHrs = Math.max(...rows.map(r => r.hours), 1);
@@ -1341,10 +1545,15 @@ function renderSemesterTable() {
     if (r.module) data[sem].modules.add(r.module);
   });
 
+  window._drillData = window._drillData || {};
+  Object.entries(data).forEach(([sem]) => {
+    window._drillData[sem] = mappedRows.filter(r => (r.semester || 'Unknown') === sem);
+  });
   const rows = Object.entries(data).map(([sem, d]) => ({
     semester: sem, sessions: d.sessions, hours: d.hours,
     staffCount: d.staff.size, moduleCount: d.modules.size,
-    avgPerStaff: d.staff.size ? (d.hours / d.staff.size).toFixed(1) : '—'
+    avgPerStaff: d.staff.size ? (d.hours / d.staff.size).toFixed(1) : '—',
+    _drillKey: sem, _drillLabel: 'Semester',
   }));
 
   renderTable('semesterTable', rows,
@@ -1420,8 +1629,9 @@ function renderTable(containerId, rows, cols, cellFn, limit = null, rowClassFn =
   }).join('')}</tr></thead>`;
 
   const tbody = `<tbody>${displayRows.map(row => {
-    const cls = rowClassFn ? rowClassFn(row) : '';
-    return `<tr class="${cls}">${cols.map(([k]) => `<td>${cellFn ? cellFn(row, k) : (row[k] ?? '')}</td>`).join('')}</tr>`;
+    const cls = (rowClassFn ? rowClassFn(row) : '') + (row._drillKey ? ' clickable-row' : '');
+    const clickAttr = row._drillKey ? `onclick="openDrawer('${row._drillLabel||''}','${(row._drillKey||'').replace(/'/g,"\'")}',window._drillData&&window._drillData['${(row._drillKey||'').replace(/'/g,"\'")}']||[])"` : '';
+    return `<tr class="${cls.trim()}" ${clickAttr}>${cols.map(([k]) => `<td>${cellFn ? cellFn(row, k) : (row[k] ?? '')}</td>`).join('')}</tr>`;
   }).join('')}${limit && rows.length > limit ? `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.72rem;padding:16px;">… and ${rows.length - limit} more rows</td></tr>` : ''}</tbody>`;
 
   container.innerHTML = `<table>${thead}${tbody}</table>`;
@@ -1632,6 +1842,89 @@ function runClashDetection() {
   }, 50); // 50ms gap lets the browser paint the "Working…" state before blocking
 }
 
+// ═══════════════════════════════════════════
+// DRILL-DOWN PANEL
+// ═══════════════════════════════════════════
+function openDrawer(label, title, sessions) {
+  document.getElementById('ddLabel').textContent = label;
+  document.getElementById('ddTitle').textContent = title;
+
+  // Stats bar
+  const totalHrs = sessions.reduce((s, r) => s + (r.duration || 1), 0);
+  const staffSet = new Set(sessions.map(r => r.staff).filter(Boolean));
+  const moduleSet = new Set(sessions.map(r => r.module).filter(Boolean));
+  const clashCount = sessions.filter(r => r._clash).length;
+  const stats = [
+    [sessions.length, 'Sessions'],
+    [totalHrs.toFixed(1), 'Hours'],
+    [moduleSet.size > 1 ? moduleSet.size : staffSet.size,
+     moduleSet.size > 1 ? 'Modules' : 'Staff'],
+  ];
+  if (clashData.run) stats.push([clashCount, 'Clashes']);
+  document.getElementById('ddStats').innerHTML = stats
+    .map(([v, l]) => `<div class="dd-stat"><div class="dd-stat-val">${v}</div><div class="dd-stat-lbl">${l}</div></div>`)
+    .join('');
+
+  // Group sessions: by week > date > time
+  const grouped = {};
+  sessions.forEach(r => {
+    const grpKey = r.week ? `Week ${r.week}` : (r.date || r.semester || 'Unscheduled');
+    if (!grouped[grpKey]) grouped[grpKey] = [];
+    grouped[grpKey].push(r);
+  });
+  // Sort groups numerically by week number where possible
+  const sortedGroups = Object.keys(grouped).sort((a, b) => {
+    const na = parseInt(a.replace(/\D/g,'')), nb = parseInt(b.replace(/\D/g,''));
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+
+  let html = '';
+  sortedGroups.forEach(grp => {
+    const grpSessions = grouped[grp].sort((a, b) => {
+      const ta = a.startTime || '', tb = b.startTime || '';
+      return ta.localeCompare(tb);
+    });
+    html += `<div class="dd-section-head">${grp} — ${grpSessions.length} session${grpSessions.length!==1?'s':''}</div>`;
+    grpSessions.forEach(r => {
+      const timeStr = r.startTime ? `${r.startTime}${r.endTime ? '–'+r.endTime : ''}` : '—';
+      const meta = [r.type, r.room].filter(Boolean).join(' · ');
+      const clashClass = r._clash ? ' is-clash' : '';
+      const staffOrMod = label === 'Staff Member' ? (r.module || '—') : (r.staff || '—');
+      const secondaryLabel = label === 'Staff Member' ? '' :
+        `<div class="dd-meta">${r.staff || ''}</div>`;
+      html += `<div class="dd-session-row${clashClass}">
+        <div class="dd-time">${timeStr}</div>
+        <div>
+          <div class="dd-module">${staffOrMod}</div>
+          ${secondaryLabel}
+          ${meta ? `<div class="dd-meta">${meta}</div>` : ''}
+        </div>
+        <div>
+          <div class="dd-hrs">${(r.duration||1).toFixed(1)}h</div>
+          ${r._clash ? '<div class="dd-clash-flag">⚠ clash</div>' : ''}
+        </div>
+      </div>`;
+    });
+  });
+
+  document.getElementById('ddBody').innerHTML = html;
+  document.getElementById('ddOverlay').classList.add('open');
+  document.getElementById('ddPanel').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('ddOverlay').classList.remove('open');
+  document.getElementById('ddPanel').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeDrawer();
+    document.getElementById('faqModal').classList.remove('open');
+  }
+});
+
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -1706,10 +1999,6 @@ function setStatus(type, msg) {
   bar.className = 'status-bar ' + type;
   document.getElementById('statusText').textContent = msg;
 }
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') document.getElementById('faqModal').classList.remove('open');
-});
 
 function clearAll() {
   rawRows = []; mappedRows = []; columns = [];
