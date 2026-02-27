@@ -793,6 +793,73 @@
     text-decoration-color: rgba(16,38,59,0.25);
     text-underline-offset: 3px;
   }
+
+  /* ── Sources list ── */
+  .sources-list {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .source-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--accent2);
+  }
+  .source-item .source-icon { font-size: 1rem; flex-shrink: 0; }
+  .source-item .source-info { flex: 1; min-width: 0; }
+  .source-item .source-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .source-item .source-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .source-remove {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 5px;
+    width: 26px; height: 26px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .source-remove:hover { background: rgba(185,28,46,0.08); border-color: var(--danger); color: var(--danger); }
+  .sources-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 20px;
+    margin-bottom: 6px;
+  }
+  .sources-header-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .sources-total {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent2);
+    font-weight: 600;
+  }
   /* ── Clash detection ── */
   .clash-btn { background: var(--danger); color: #fff; border: none; }
   .clash-btn:hover { background: #9a1525; }
@@ -947,7 +1014,7 @@
         <div style="margin-top:6px;font-size:0.75rem;color:var(--muted);">Supports .html · .htm · .csv</div>
       </div>
       <div style="margin-top:16px;text-align:right;">
-        <button class="btn btn-outline btn-sm" onclick="clearAll()">Clear</button>
+        <button class="btn btn-outline btn-sm" onclick="clearAll()">Clear All</button>
       </div>
     </div>
 
@@ -980,8 +1047,17 @@
       <textarea class="paste-area" id="pasteArea" placeholder="Paste the copied data here after running the bookmarklet on your timetable page…" style="height:100px;"></textarea>
       <div style="margin-top:12px;display:flex;gap:8px;">
         <button class="btn btn-accent" id="parsePasteBtn">Parse Pasted Data →</button>
-        <button class="btn btn-outline" onclick="clearAll()">Clear</button>
+        <button class="btn btn-outline" onclick="clearAll()">Clear All</button>
       </div>
+    </div>
+
+    <!-- Loaded sources list (shared, always visible) -->
+    <div id="sourcesSection" style="display:none;border-top:1px solid var(--border);padding:16px 28px 20px;">
+      <div class="sources-header">
+        <span class="sources-header-label">Loaded sources</span>
+        <span class="sources-total" id="sourcesTotalLabel"></span>
+      </div>
+      <div class="sources-list" id="sourcesList"></div>
     </div>
 
   </div>
@@ -1152,10 +1228,13 @@ function copyBookmarklet() {
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let rawRows = [];        // parsed raw rows from source
-let mappedRows = [];     // rows after column mapping applied
-let columns = [];        // detected column names
+let sources = [];        // array of {id, name, icon, rawRows, columns, mappedRows}
+let rawRows = [];        // pending raw rows awaiting mapping (current import)
+let mappedRows = [];     // merged mapped rows from ALL sources
+let columns = [];        // columns of current pending import
 let sortState = {};      // per-table sort state
+let pendingSourceName = '';
+let pendingSourceIcon = '📄';
 
 const FIELD_KEYS = ['staff', 'module', 'date', 'startTime', 'endTime', 'duration', 'type', 'room', 'week', 'semester'];
 const FIELD_LABELS = { staff:'Staff Name', module:'Module/Course', date:'Date', startTime:'Start Time', endTime:'End Time', duration:'Duration (hrs)', type:'Session Type', room:'Room', week:'Week Number', semester:'Semester' };
@@ -1201,13 +1280,15 @@ document.getElementById('fileInput').addEventListener('change', function() {
 document.getElementById('parsePasteBtn').addEventListener('click', parsePaste);
 
 function handleFile(file) {
+  pendingSourceName = file.name;
+  pendingSourceIcon = file.name.endsWith('.csv') ? '📊' : '📄';
   const reader = new FileReader();
   reader.onload = e => {
-    const content = e.target.result;
+    const txt = e.target.result;
     if (file.name.endsWith('.csv')) {
-      parseCSV(content);
+      parseCSV(txt);
     } else {
-      parseHTML(content);
+      parseHTML(txt);
     }
   };
   reader.readAsText(file);
@@ -1275,7 +1356,7 @@ function parseHTML(html) {
   columns = headers;
   rawRows = rows;
   setStatus('loaded', `Merged ${matchingTables.length} table${matchingTables.length>1?'s':''} → ${rows.length} rows (${headers.length} columns: ${headers.join(', ')})${skipped ? ` · ${skipped} non-matching table(s) ignored` : ''}${expandedNote}`);
-  showMapping();
+  showMapping(pendingSourceName || 'Uploaded file');
 }
 
 function parseCSV(text) {
@@ -1292,7 +1373,7 @@ function parseCSV(text) {
   columns = headers;
   rawRows = rows;
   setStatus('loaded', `Loaded ${rows.length} rows from CSV (${headers.length} columns: ${headers.join(', ')})`);
-  showMapping();
+  showMapping(pendingSourceName || 'Uploaded file');
 }
 
 function parseCSVLine(line) {
@@ -1314,13 +1395,15 @@ function parseCSVLine(line) {
 function parsePaste() {
   const text = document.getElementById('pasteArea').value.trim();
   if (!text) { setStatus('error', 'Nothing pasted.'); return; }
+  pendingSourceName = 'Pasted data ' + (sources.length + 1);
+  pendingSourceIcon = '📋';
   try {
     const obj = JSON.parse(text);
     if (obj.type === 'table' && obj.rows) {
       columns = obj.headers;
       rawRows = obj.rows;
       setStatus('loaded', `Loaded ${rawRows.length} scraped rows (${columns.length} columns)`);
-      showMapping();
+      showMapping(pendingSourceName || 'Pasted data');
       return;
     }
     if (obj.type === 'divs' && obj.rows) {
@@ -1328,7 +1411,7 @@ function parsePaste() {
       rawRows = obj.rows.map((r, i) => ({ '_row': r, '_index': i }));
       columns = ['_row'];
       setStatus('loaded', `Loaded ${rawRows.length} div-scraped rows. Please map fields manually.`);
-      showMapping();
+      showMapping(pendingSourceName || 'Pasted data');
       return;
     }
   } catch(e) {}
@@ -1347,7 +1430,7 @@ function parsePaste() {
     columns = headers;
     rawRows = rows;
     setStatus('loaded', `Parsed ${rows.length} rows from pasted text`);
-    showMapping();
+    showMapping(pendingSourceName || 'Pasted data');
     return;
   }
   setStatus('error', 'Could not parse pasted data. Try pasting JSON from the bookmarklet or CSV text.');
@@ -1356,7 +1439,8 @@ function parsePaste() {
 // ═══════════════════════════════════════════
 // COLUMN MAPPING
 // ═══════════════════════════════════════════
-function showMapping() {
+function showMapping(sourceName) {
+  pendingSourceName = sourceName || pendingSourceName || 'Source ' + (sources.length + 1);
   const panel = document.getElementById('mappingPanel');
   const grid = document.getElementById('mappingGrid');
   grid.innerHTML = '';
@@ -1399,25 +1483,77 @@ function applyMapping() {
     return;
   }
 
-  mappedRows = rawRows.map(row => {
+  const newMapped = rawRows.map(row => {
     const r = {};
     FIELD_KEYS.forEach(key => {
       r[key] = mapping[key] ? (row[mapping[key]] || '') : '';
     });
-    // Try to derive duration if not mapped
     if (!r.duration && r.startTime && r.endTime) {
       r.duration = parseHours(r.startTime, r.endTime);
     }
-    if (!r.duration) r.duration = 1; // default 1hr
+    if (!r.duration) r.duration = 1;
     else r.duration = parseFloat(r.duration) || 1;
-    // Derive week from date if not mapped
     if (!r.week && r.date) r.week = dateToWeek(r.date);
     if (!r.semester && r.week) r.semester = weekToSemester(parseInt(r.week));
     return r;
   }).filter(r => r.staff || r.module);
 
+  // Add as a new source
+  const sourceId = Date.now();
+  sources.push({
+    id: sourceId,
+    name: pendingSourceName || ('Source ' + (sources.length + 1)),
+    icon: pendingSourceIcon || '📄',
+    rawRows: [...rawRows],
+    columns: [...columns],
+    mappedRows: newMapped,
+  });
+
+  // Rebuild merged mappedRows from all sources
+  rebuildMappedRows();
+
   document.getElementById('mappingPanel').classList.remove('visible');
+  // Reset pending
+  rawRows = []; columns = []; pendingSourceName = ''; pendingSourceIcon = '📄';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('pasteArea').value = '';
+  renderSourcesList();
   buildResults();
+}
+
+function rebuildMappedRows() {
+  mappedRows = sources.flatMap(s => s.mappedRows);
+}
+
+function removeSource(id) {
+  sources = sources.filter(s => s.id !== id);
+  if (!sources.length) {
+    clearAll();
+    return;
+  }
+  rebuildMappedRows();
+  renderSourcesList();
+  buildResults();
+  setStatus('loaded', `${sources.length} source${sources.length!==1?'s':''} loaded · ${mappedRows.length} total rows`);
+}
+
+function renderSourcesList() {
+  const section = document.getElementById('sourcesSection');
+  const list = document.getElementById('sourcesList');
+  const label = document.getElementById('sourcesTotalLabel');
+  if (!sources.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  label.textContent = `${mappedRows.length} rows total`;
+  list.innerHTML = sources.map(s => `
+    <div class="source-item">
+      <span class="source-icon">${s.icon}</span>
+      <div class="source-info">
+        <div class="source-name">${s.name}</div>
+        <div class="source-meta">${s.mappedRows.length} rows · ${[...new Set(s.mappedRows.map(r=>r.semester).filter(Boolean))].join(', ') || 'no semester detected'}</div>
+      </div>
+      <button class="source-remove" onclick="removeSource(${s.id})" title="Remove this source">✕</button>
+    </div>
+  `).join('');
 }
 
 function parseHours(start, end) {
@@ -1468,6 +1604,9 @@ function buildResults() {
   document.getElementById('clashTab').style.display = 'none';
 
   document.getElementById('results').style.display = 'block';
+  if (sources.length > 1) {
+    setStatus('loaded', `${sources.length} sources loaded · ${mappedRows.length} total rows`);
+  }
   buildKPIs();
   populateFilters();
   renderStaffTable();
@@ -2124,11 +2263,14 @@ function setStatus(type, msg) {
 }
 
 function clearAll() {
-  rawRows = []; mappedRows = []; columns = [];
+  sources = []; rawRows = []; mappedRows = []; columns = [];
+  pendingSourceName = ''; pendingSourceIcon = '📄';
   document.getElementById('pasteArea').value = '';
   document.getElementById('fileInput').value = '';
   document.getElementById('results').style.display = 'none';
   document.getElementById('mappingPanel').classList.remove('visible');
+  document.getElementById('sourcesSection').style.display = 'none';
+  document.getElementById('sourcesList').innerHTML = '';
   setStatus('', 'No data loaded. Upload a file or paste scraped data to begin.');
 }
 </script>
