@@ -60,6 +60,77 @@
   main { padding: 40px; max-width: 1400px; margin: 0 auto; }
 
   /* ── Import panel ── */
+  /* ── Import card ── */
+  .import-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(16,38,59,0.07);
+    margin-bottom: 32px;
+    overflow: hidden;
+  }
+  .import-method-switcher {
+    display: flex;
+    border-bottom: 2px solid var(--accent);
+    background: var(--accent);
+  }
+  .import-method-btn {
+    flex: 1;
+    padding: 14px 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.55);
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+  }
+  .import-method-btn:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.08); }
+  .import-method-btn.active {
+    color: #fff;
+    background: rgba(255,255,255,0.15);
+    font-weight: 600;
+  }
+  .import-method-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent3);
+  }
+  .import-method-divider {
+    width: 1px;
+    background: rgba(255,255,255,0.15);
+    margin: 8px 0;
+    flex-shrink: 0;
+  }
+  .import-method-pane {
+    display: none;
+    padding: 28px;
+  }
+  .import-method-pane.active { display: block; }
+  .import-pane-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .import-pane-desc {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
   .import-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -747,6 +818,7 @@
   @media (max-width: 768px) {
     main { padding: 20px; }
     .import-grid { grid-template-columns: 1fr; }
+    .import-method-btn { font-size: 0.68rem; padding: 12px 10px; }
     header { padding: 16px 20px; }
   }
 </style>
@@ -851,35 +923,63 @@
 <main>
 
   <!-- ── Import Section ── -->
-  <div class="import-grid">
+  <div class="import-card">
 
-    <!-- File Upload -->
-    <div class="panel">
-      <h2>📁 Upload HTML / CSV</h2>
-      <p>Download your timetable page as HTML (File → Save As in your browser) or export as CSV, then drop it here.</p>
+    <!-- Method switcher -->
+    <div class="import-method-switcher">
+      <button class="import-method-btn active" id="methodBtn1" onclick="switchImportMethod('upload')">
+        📁 Upload File
+      </button>
+      <div class="import-method-divider"></div>
+      <button class="import-method-btn" id="methodBtn2" onclick="switchImportMethod('scrape')">
+        🔖 Bookmarklet Scraper
+      </button>
+    </div>
+
+    <!-- Pane 1: File Upload -->
+    <div class="import-method-pane active" id="importPane-upload">
+      <div class="import-pane-title">Upload HTML or CSV</div>
+      <p class="import-pane-desc">Save your timetable page as HTML (File → Save Page As in your browser) or export it as CSV, then drop the file below. All tables on the page will be detected and merged automatically.</p>
       <div class="dropzone" id="dropzone">
         <input type="file" id="fileInput" accept=".html,.htm,.csv,.txt">
         <div class="icon">⬆</div>
         <div>Drop file here or <strong>click to browse</strong></div>
-        <div style="margin-top:6px;font-size:0.75rem;">Supports .html · .htm · .csv</div>
+        <div style="margin-top:6px;font-size:0.75rem;color:var(--muted);">Supports .html · .htm · .csv</div>
+      </div>
+      <div style="margin-top:16px;text-align:right;">
+        <button class="btn btn-outline btn-sm" onclick="clearAll()">Clear</button>
       </div>
     </div>
 
-    <!-- Bookmarklet -->
-    <div class="panel">
-      <h2>🔖 Bookmarklet Scraper</h2>
-      <p>Drag the button below to your bookmarks bar. Then navigate to your timetable page and click it — the data will be copied to your clipboard, ready to paste below.</p>
-      <div class="bookmarklet-box">
-        <code id="bookmarkletCode">javascript:(function(){/* generated below */})()</code>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <!-- Pane 2: Bookmarklet -->
+    <div class="import-method-pane" id="importPane-scrape">
+      <div class="import-pane-title">Bookmarklet Scraper</div>
+      <p class="import-pane-desc">This method lets you scrape timetable data directly from a live page without saving a file. Drag the button below to your bookmarks bar once, then click it while viewing your timetable page — the data will be copied to your clipboard ready to paste here.</p>
+
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:16px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+        <div style="flex:1;">
+          <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);margin-bottom:6px;">STEP 1 — drag to bookmarks bar</div>
           <a id="bookmarkletLink" href="#" class="drag-link" title="Drag me to your bookmarks bar!">🔖 Scrape Timetable</a>
-          <button class="btn btn-outline btn-sm" onclick="copyBookmarklet()">Copy Code</button>
+        </div>
+        <div style="color:var(--border);font-size:1.5rem;">→</div>
+        <div style="flex:1;">
+          <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);margin-bottom:6px;">STEP 2 — click it on your timetable page</div>
+          <div style="font-size:0.82rem;color:var(--text);">Data copies to clipboard automatically</div>
+        </div>
+        <div style="color:var(--border);font-size:1.5rem;">→</div>
+        <div style="flex:1;">
+          <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);margin-bottom:6px;">STEP 3 — paste below</div>
+          <div style="font-size:0.82rem;color:var(--text);">Then click Parse</div>
         </div>
       </div>
-      <p style="font-size:0.75rem;">After clicking the bookmarklet on your timetable page, paste the result below:</p>
-      <textarea class="paste-area" id="pasteArea" placeholder="Paste scraped JSON or HTML table data here…"></textarea>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button class="btn btn-accent" onclick="parsePaste()">Parse Pasted Data</button>
+
+      <div style="margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+        <label style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Paste scraped data here</label>
+        <button class="btn btn-outline btn-sm" onclick="copyBookmarklet()">Copy bookmarklet code</button>
+      </div>
+      <textarea class="paste-area" id="pasteArea" placeholder="Paste the copied data here after running the bookmarklet on your timetable page…" style="height:100px;"></textarea>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="btn btn-accent" onclick="parsePaste()">Parse Pasted Data →</button>
         <button class="btn btn-outline" onclick="clearAll()">Clear</button>
       </div>
     </div>
@@ -1924,6 +2024,13 @@ document.addEventListener('keydown', e => {
     document.getElementById('faqModal').classList.remove('open');
   }
 });
+
+function switchImportMethod(method) {
+  document.querySelectorAll('.import-method-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.import-method-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('importPane-' + method).classList.add('active');
+  document.getElementById(method === 'upload' ? 'methodBtn1' : 'methodBtn2').classList.add('active');
+}
 
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
