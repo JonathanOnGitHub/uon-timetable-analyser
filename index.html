@@ -2,7 +2,7 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<title>University of Nottingham Timetable Staff & Module Load Analyser</title>
+<title>University Timetable Staff & Module Load Analyser</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; color:#041e42;}
@@ -33,12 +33,12 @@ tr:nth-child(even) { background:#f2f2f2;}
 </head>
 <body>
 <header>
-<h1>University of Nottingham Timetable Staff & Module Load Analyser</h1>
+<h1>University Timetable Staff & Module Load Analyser</h1>
 </header>
 
 <main>
 <div class="instructions">
-<p><strong>Note:</strong> All processing happens locally in your browser, no data leaves your computer. Upload your HTML timetable file(s) (download from main timetable website) to analyse teaching loads. Multiple files are supported in case you want to analyse several courses at once. Tip - you probably want to avoid double-counting!</p>
+<p><strong>Note:</strong> All processing happens locally in your browser. Upload your HTML timetable files to analyse teaching loads. Multiple files are supported.</p>
 </div>
 
 <div class="controls">
@@ -78,9 +78,8 @@ tr:nth-child(even) { background:#f2f2f2;}
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {
-
 let allData=[], allLoadData={}, allModuleLoad={};
-let currentSort={col:'',asc:true};
+let currentSort={};
 
 // --- Tab switching ---
 document.querySelectorAll('.tab').forEach(tab=>{
@@ -141,6 +140,7 @@ function parseHTMLTimetable(fileContent){
 
 function parseTime(t){ if(!t) return 0; const [h,m]=t.split(":").map(Number); return h+(m||0)/60; }
 
+// --- Compute Load (store numeric + sessions for deep-dive) ---
 function computeLoad(data,keyField,realistic=false){
     const result={};
     data.forEach(sess=>{
@@ -150,17 +150,21 @@ function computeLoad(data,keyField,realistic=false){
             if(!result[t]) result[t]={};
             sess.Weeks.forEach(w=>{
                 const week=w.toString();
-                if(!result[t][week]) result[t][week]=[];
-                result[t][week].push({day:sess.Day,start:parseTime(sess.Start),end:parseTime(sess.End),info:sess});
+                if(!result[t][week]) result[t][week]={sessions:[],hours:0};
+                result[t][week].sessions.push(sess);
             });
         });
     });
+
+    // Compute hours per week
     Object.keys(result).forEach(r=>{
         Object.keys(result[r]).forEach(w=>{
-            const intervals=result[r][w];
+            const intervals=result[r][w].sessions.map(s=>{
+                return {day:s.Day,start:parseTime(s.Start),end:parseTime(s.End)};
+            });
             if(realistic){
                 const dayMap={};
-                intervals.forEach(i=>{if(!dayMap[i.day]) dayMap[i.day]=[]; dayMap[i.day].push({start:i.start,end:i.end,info:i.info});});
+                intervals.forEach(i=>{if(!dayMap[i.day]) dayMap[i.day]=[]; dayMap[i.day].push({start:i.start,end:i.end});});
                 let total=0;
                 Object.values(dayMap).forEach(dayIntervals=>{
                     const sorted=dayIntervals.sort((a,b)=>a.start-b.start);
@@ -171,15 +175,18 @@ function computeLoad(data,keyField,realistic=false){
                         if(e>s) total+=(e-s);
                         currentEnd=Math.max(currentEnd,e);
                     });
+                result[r][w].hours = intervals.reduce((sum,i)=>sum+(i.end-i.start),0); // keep simple sum for display
                 });
+            } else {
+                result[r][w].hours = intervals.reduce((sum,i)=>sum+(i.end-i.start),0);
             }
-            result[r][w]=intervals.reduce((sum,i)=>sum+(i.end-i.start),0);
         });
     });
+
     return result;
 }
 
-// --- Render Grid + Sorting + Deep Dive ---
+// --- Render Grid ---
 function renderGrid(loadData,containerId){
     const container=document.getElementById(containerId);
     container.innerHTML='';
@@ -191,22 +198,22 @@ function renderGrid(loadData,containerId){
 
     let maxHours=0;
     rows.forEach(r=>{
-        let total=0;
-        weeks.forEach(w=>{ const val=loadData[r][w]||0; total+=val; if(val>maxHours) maxHours=val; });
-        if(total>maxHours) maxHours=total;
+        weeks.forEach(w=>{ const val=loadData[r][w]?.hours||0; if(val>maxHours) maxHours=val; });
     });
 
+    // --- Header ---
     const thead=document.createElement('thead');
     const headerRow=document.createElement('tr');
-    const thName=document.createElement('th'); thName.textContent=(containerId==='staffGridContainer'?'Staff':'Module');
-    thName.onclick=()=>sortTable(table,0); headerRow.appendChild(thName);
+    const thName=document.createElement('th'); thName.textContent=(containerId==='staffGridContainer'?'Staff':'Module'); thName.onclick=()=>sortTable(table,0); headerRow.appendChild(thName);
     weeks.forEach((w,i)=>{
         const th=document.createElement('th'); th.textContent='Week '+w; th.dataset.week=w;
-        th.onclick=()=>sortTable(table,i+1); headerRow.appendChild(th);
+        th.onclick=()=>sortTable(table,i+1);
+        headerRow.appendChild(th);
     });
     const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.onclick=()=>sortTable(table,weeks.length+1); headerRow.appendChild(thTotal);
     thead.appendChild(headerRow); table.appendChild(thead);
 
+    // --- Body ---
     const tbody=document.createElement('tbody');
     const grandTotal={}; weeks.forEach(w=>grandTotal[w]=0); let grandTotalAll=0;
 
@@ -216,7 +223,7 @@ function renderGrid(loadData,containerId){
         let total=0;
         weeks.forEach(w=>{
             const td=document.createElement('td');
-            const val=loadData[r][w]||0;
+            const val=loadData[r][w]?.hours||0;
             total+=val; grandTotal[w]+=val;
             td.textContent=val.toFixed(1);
             td.style.background=`rgba(0,102,204,${Math.min(val/maxHours,1)})`;
@@ -229,6 +236,7 @@ function renderGrid(loadData,containerId){
         tbody.appendChild(tr);
     });
 
+    // --- Grand Total Row ---
     const trGrand=document.createElement('tr');
     const tdLabel=document.createElement('td'); tdLabel.textContent='Grand total'; tdLabel.style.fontWeight='bold'; trGrand.appendChild(tdLabel);
     weeks.forEach(w=>{ const td=document.createElement('td'); td.textContent=grandTotal[w].toFixed(1); td.style.fontWeight='bold'; trGrand.appendChild(td); });
@@ -242,7 +250,7 @@ function renderGrid(loadData,containerId){
 function sortTable(table,col){
     let asc=!currentSort[col]; currentSort={}; currentSort[col]=asc;
     const tbody=table.tBodies[0];
-    const rows=Array.from(tbody.rows).slice(0,-1);
+    const rows=Array.from(tbody.rows).slice(0,-1); // exclude grand total
     rows.sort((a,b)=>{
         const aVal=(col===0)?a.cells[col].textContent:parseFloat(a.cells[col].textContent)||0;
         const bVal=(col===0)?b.cells[col].textContent:parseFloat(b.cells[col].textContent)||0;
@@ -255,18 +263,14 @@ function sortTable(table,col){
 
 // --- Deep Dive ---
 function showDeepDive(rowName,week,loadData){
-    const sessions=[];
     const weekStr=week.toString();
-    if(loadData[rowName] && loadData[rowName][weekStr]){
-        loadData[rowName][weekStr].forEach(i=>sessions.push(i.info||i));
-    }
+    const sessions=loadData[rowName]?.[weekStr]?.sessions || [];
     if(!sessions.length) return;
     modalBody.innerHTML=`<h3>${rowName} - Week ${week}</h3>`;
     const table=document.createElement('table');
     const trh=document.createElement('tr');
-    ["Activity","Module Code","Module Title","Session Title","Type","Day","Start","End","Location","Group","Notes"].forEach(h=>{
-        const th=document.createElement('th'); th.textContent=h; trh.appendChild(th);
-    }); table.appendChild(trh);
+    ["Activity","Module Code","Module Title","Session Title","Type","Day","Start","End","Location","Group","Notes"].forEach(h=>{const th=document.createElement('th'); th.textContent=h; trh.appendChild(th);});
+    table.appendChild(trh);
     sessions.forEach(s=>{
         const tr=document.createElement('tr');
         ["Activity","Module Code","Module Title","Session Title","Type","Day","Start","End","Location","Group Information","Notes"].forEach(k=>{
@@ -278,15 +282,12 @@ function showDeepDive(rowName,week,loadData){
     modal.style.display='block';
 }
 
-// --- Analyse Button ---
+// --- Analyse ---
 document.getElementById('analyseBtn').onclick=async function(){
     const files=document.getElementById('fileInput').files;
     if(!files.length){ alert('Please select at least one HTML file'); return; }
     allData=[];
-    for(let f of files){
-        const text=await f.text();
-        allData.push(...parseHTMLTimetable(text));
-    }
+    for(let f of files){ allData.push(...parseHTMLTimetable(await f.text())); }
     const realistic=document.getElementById('realisticToggle').checked;
     allLoadData=computeLoad(allData,'Staff',realistic);
     allModuleLoad=computeLoad(allData,'Module',realistic);
@@ -305,7 +306,7 @@ function exportGridExcel(loadData,filename){
     rows.forEach(r=>{
         const row=[r]; let total=0;
         weeks.forEach(w=>{
-            const val=loadData[r][w]||0; total+=val; row.push(val.toFixed(1));
+            const val=loadData[r][w]?.hours||0; total+=val; row.push(val.toFixed(1));
         });
         row.push(total.toFixed(1)); wsData.push(row);
     });
