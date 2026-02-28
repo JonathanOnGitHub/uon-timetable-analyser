@@ -2,7 +2,7 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<title>University Timetable Staff & Module Load Analyser</title>
+<title>University of Nottingham Timetable Staff & Module Load Analyser</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; color:#041e42;}
@@ -20,7 +20,7 @@ th, td { border:1px solid #ccc; padding:5px; text-align:center;}
 th { background:#0066cc; color:white; cursor:pointer; user-select:none; }
 tr:nth-child(even) { background:#f2f2f2;}
 .modal { display:none; position:fixed; z-index:10; left:0; top:0; width:100%; height:100%; overflow:auto; background: rgba(0,0,0,0.6);}
-.modal-content { background:white; margin:5% auto; padding:20px; border-radius:5px; max-width:95%; }
+.modal-content { background:white; margin:5% auto; padding:20px; border-radius:5px; max-width:95%; max-height:90%; overflow:auto;}
 .close { float:right; font-size:1.2em; cursor:pointer;}
 .export-buttons { margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;}
 .tabs { display:flex; gap:5px; margin-bottom:10px;}
@@ -29,61 +29,58 @@ tr:nth-child(even) { background:#f2f2f2;}
 .tab-content { display:none; }
 .tab-content.active { display:block; }
 </style>
-
-<!-- Load XLSX first -->
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
 </head>
 <body>
-
 <header>
-    <h1>University Timetable Staff & Module Load Analyser</h1>
+<h1>University of Nottingham Timetable Staff & Module Load Analyser</h1>
 </header>
 
 <main>
-    <div class="instructions">
-        <p><strong>Note:</strong> All processing happens locally in your browser. Upload your HTML timetable files to analyse teaching loads. Multiple files are supported.</p>
-    </div>
+<div class="instructions">
+<p><strong>Note:</strong> All processing happens locally in your browser, no data leaves your computer. Upload your HTML timetable file(s) (download from main timetable website) to analyse teaching loads. Multiple files are supported in case you want to analyse several courses at once. Tip - you probably want to avoid double-counting!</p>
+</div>
 
-    <div class="controls">
-        <input type="file" id="fileInput" multiple accept=".html,.htm">
-        <label for="titleInput">Analysis Title:</label>
-        <input type="text" id="titleInput" placeholder="Optional title">
-        <label><input type="checkbox" id="realisticToggle"> Avoid double-counting overlapping sessions</label>
-        <button id="analyseBtn">Analyse</button>
-    </div>
+<div class="controls">
+<input type="file" id="fileInput" multiple accept=".html,.htm">
+<label for="titleInput">Analysis Title:</label>
+<input type="text" id="titleInput" placeholder="Optional title">
+<label><input type="checkbox" id="realisticToggle"> Avoid double-counting overlapping sessions</label>
+<button id="analyseBtn">Analyse</button>
+</div>
 
-    <div class="tabs">
-        <div class="tab active" data-tab="staffTab">Staff View</div>
-        <div class="tab" data-tab="moduleTab">Module View</div>
-    </div>
+<div class="tabs">
+<div class="tab active" data-tab="staffTab">Staff View</div>
+<div class="tab" data-tab="moduleTab">Module View</div>
+</div>
 
-    <div id="staffTab" class="tab-content active">
-        <div id="staffGridContainer"></div>
-        <div class="export-buttons">
-            <button id="exportExcelStaff">Export Staff Grid to Excel</button>
-        </div>
-    </div>
+<div id="staffTab" class="tab-content active">
+<div id="staffGridContainer"></div>
+<div class="export-buttons">
+<button id="exportExcelStaff">Export Staff Grid to Excel</button>
+</div>
+</div>
 
-    <div id="moduleTab" class="tab-content">
-        <div id="moduleGridContainer"></div>
-        <div class="export-buttons">
-            <button id="exportExcelModule">Export Module Grid to Excel</button>
-        </div>
-    </div>
+<div id="moduleTab" class="tab-content">
+<div id="moduleGridContainer"></div>
+<div class="export-buttons">
+<button id="exportExcelModule">Export Module Grid to Excel</button>
+</div>
+</div>
 </main>
 
 <div id="modal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <div id="modalBody"></div>
-    </div>
+<div class="modal-content">
+<span class="close">&times;</span>
+<div id="modalBody"></div>
+</div>
 </div>
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {
 
-let allData=[], allLoadData={}, allModuleLoad={}, currentSort={col:'',asc:true};
+let allData=[], allLoadData={}, allModuleLoad={};
+let currentSort={col:'',asc:true};
 
 // --- Tab switching ---
 document.querySelectorAll('.tab').forEach(tab=>{
@@ -95,42 +92,46 @@ document.querySelectorAll('.tab').forEach(tab=>{
     });
 });
 
+// --- Modal ---
+const modal=document.getElementById('modal');
+const modalBody=document.getElementById('modalBody');
+document.querySelector('.close').onclick=()=>modal.style.display='none';
+window.onclick=e=>{if(e.target===modal) modal.style.display='none';}
+
 // --- Helpers ---
 function parseWeeks(weeksStr) {
-    const weeks = new Set();
-    if (!weeksStr) return [];
-    weeksStr.split(/,|\s+/).forEach(part => {
-        part = part.trim();
-        if (part.includes('-')) {
-            const [start, end] = part.split('-').map(n=>parseInt(n,10));
+    const weeks=new Set();
+    if(!weeksStr) return [];
+    weeksStr.split(/,|\s+/).forEach(part=>{
+        part=part.trim();
+        if(part.includes('-')){
+            const [start,end]=part.split('-').map(n=>parseInt(n,10));
             for(let i=start;i<=end;i++) weeks.add(i);
-        } else if (!isNaN(parseInt(part))) {
-            weeks.add(parseInt(part));
-        }
+        } else if(!isNaN(parseInt(part))) weeks.add(parseInt(part));
     });
     return Array.from(weeks).sort((a,b)=>a-b);
 }
 
-function parseHTMLTimetable(fileContent) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(fileContent,"text/html");
-    const tables = doc.querySelectorAll("table");
-    const data = [];
-    tables.forEach(table => {
-        const headers = Array.from(table.querySelectorAll("th")).map(h=>h.textContent.trim());
-        const required = ["Activity","Module Code","Module Title","Session Title","Type","Weeks","Day","Start","End","Staff","Location","Group Information","Notes"];
-        if (!required.every(h=>headers.includes(h))) return;
-        const rows = table.querySelectorAll("tr");
+function parseHTMLTimetable(fileContent){
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(fileContent,"text/html");
+    const tables=doc.querySelectorAll("table");
+    const data=[];
+    tables.forEach(table=>{
+        const headers=Array.from(table.querySelectorAll("th")).map(h=>h.textContent.trim());
+        const required=["Activity","Module Code","Module Title","Session Title","Type","Weeks","Day","Start","End","Staff","Location","Group Information","Notes"];
+        if(!required.every(h=>headers.includes(h))) return;
+        const rows=table.querySelectorAll("tr");
         rows.forEach((row,i)=>{
             if(i===0) return;
-            const cells = row.querySelectorAll("td");
+            const cells=row.querySelectorAll("td");
             if(cells.length!==headers.length) return;
-            const obj = {};
+            const obj={};
             headers.forEach((h,idx)=>{
-                let val = cells[idx].innerHTML.trim();
-                if(h==="Staff") val = val.split(/<br\s*\/?>/i).map(s=>s.trim()).filter(Boolean);
-                if(h==="Weeks") val = parseWeeks(val);
-                obj[h] = val;
+                let val=cells[idx].innerHTML.trim();
+                if(h==="Staff") val=val.split(/<br\s*\/?>/i).map(s=>s.trim()).filter(Boolean);
+                if(h==="Weeks") val=parseWeeks(val);
+                obj[h]=val;
             });
             data.push(obj);
         });
@@ -138,29 +139,28 @@ function parseHTMLTimetable(fileContent) {
     return data;
 }
 
-function parseTime(t) { if(!t) return 0; const [h,m]=t.split(":").map(Number); return h+(m||0)/60; }
+function parseTime(t){ if(!t) return 0; const [h,m]=t.split(":").map(Number); return h+(m||0)/60; }
 
-function computeLoad(data, keyField, realistic=false){
-    const result = {};
+function computeLoad(data,keyField,realistic=false){
+    const result={};
     data.forEach(sess=>{
-        const key = keyField==='Staff'?null:sess["Module Code"]+" - "+sess["Module Title"];
-        const targets = keyField==='Staff'?sess.Staff:[key];
+        const key=keyField==='Staff'?null:sess["Module Code"]+" - "+sess["Module Title"];
+        const targets=keyField==='Staff'?sess.Staff:[key];
         targets.forEach(t=>{
             if(!result[t]) result[t]={};
             sess.Weeks.forEach(w=>{
                 const week=w.toString();
                 if(!result[t][week]) result[t][week]=[];
-                result[t][week].push({day:sess.Day,start:parseTime(sess.Start),end:parseTime(sess.End)});
+                result[t][week].push({day:sess.Day,start:parseTime(sess.Start),end:parseTime(sess.End),info:sess});
             });
         });
     });
-    // Compute totals
     Object.keys(result).forEach(r=>{
         Object.keys(result[r]).forEach(w=>{
-            const intervals = result[r][w];
+            const intervals=result[r][w];
             if(realistic){
                 const dayMap={};
-                intervals.forEach(i=>{ if(!dayMap[i.day]) dayMap[i.day]=[]; dayMap[i.day].push({start:i.start,end:i.end});});
+                intervals.forEach(i=>{if(!dayMap[i.day]) dayMap[i.day]=[]; dayMap[i.day].push({start:i.start,end:i.end,info:i.info});});
                 let total=0;
                 Object.values(dayMap).forEach(dayIntervals=>{
                     const sorted=dayIntervals.sort((a,b)=>a.start-b.start);
@@ -172,17 +172,15 @@ function computeLoad(data, keyField, realistic=false){
                         currentEnd=Math.max(currentEnd,e);
                     });
                 });
-                result[r][w]=total;
-            } else {
-                result[r][w]=intervals.reduce((sum,i)=>sum+(i.end-i.start),0);
             }
+            result[r][w]=intervals.reduce((sum,i)=>sum+(i.end-i.start),0);
         });
     });
     return result;
 }
 
-// --- Render Grid (Staff or Module) ---
-function renderGrid(loadData, containerId, deepDive=true){
+// --- Render Grid + Sorting + Deep Dive ---
+function renderGrid(loadData,containerId){
     const container=document.getElementById(containerId);
     container.innerHTML='';
     const table=document.createElement('table');
@@ -200,9 +198,13 @@ function renderGrid(loadData, containerId, deepDive=true){
 
     const thead=document.createElement('thead');
     const headerRow=document.createElement('tr');
-    const thName=document.createElement('th'); thName.textContent=(containerId==='staffGridContainer'?'Staff':'Module'); thName.onclick=()=>sortGrid(thName.textContent,table); headerRow.appendChild(thName);
-    weeks.forEach(w=>{ const th=document.createElement('th'); th.textContent='Week '+w; th.dataset.week=w; th.onclick=()=>sortGrid(w,table); headerRow.appendChild(th); });
-    const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.dataset.total='total'; thTotal.onclick=()=>sortGrid('total',table); headerRow.appendChild(thTotal);
+    const thName=document.createElement('th'); thName.textContent=(containerId==='staffGridContainer'?'Staff':'Module');
+    thName.onclick=()=>sortTable(table,0); headerRow.appendChild(thName);
+    weeks.forEach((w,i)=>{
+        const th=document.createElement('th'); th.textContent='Week '+w; th.dataset.week=w;
+        th.onclick=()=>sortTable(table,i+1); headerRow.appendChild(th);
+    });
+    const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.onclick=()=>sortTable(table,weeks.length+1); headerRow.appendChild(thTotal);
     thead.appendChild(headerRow); table.appendChild(thead);
 
     const tbody=document.createElement('tbody');
@@ -215,53 +217,105 @@ function renderGrid(loadData, containerId, deepDive=true){
         weeks.forEach(w=>{
             const td=document.createElement('td');
             const val=loadData[r][w]||0;
-            total+=val;
-            grandTotal[w]+=val;
+            total+=val; grandTotal[w]+=val;
             td.textContent=val.toFixed(1);
-            const intensity=maxHours?Math.min(val/maxHours,1):0;
-            td.style.background=`rgba(0,102,204,${intensity})`;
-            td.style.color=intensity>0.5?'white':'black';
-            if(deepDive) td.style.cursor='pointer';
-            if(deepDive) td.onclick=()=>showDeepDiveCell(containerId==='staffGridContainer'?r:null,containerId==='moduleGridContainer'?r:null,w);
+            td.style.background=`rgba(0,102,204,${Math.min(val/maxHours,1)})`;
+            td.style.color=(val/maxHours>0.5)?'white':'black';
+            td.onclick=()=>showDeepDive(r,w,loadData);
             tr.appendChild(td);
         });
-        const tdTotal=document.createElement('td'); tdTotal.textContent=total.toFixed(1);
+        const tdTotal=document.createElement('td'); tdTotal.textContent=total.toFixed(1); tdTotal.style.fontWeight='bold'; tr.appendChild(tdTotal);
         grandTotalAll+=total;
-        const intensity=maxHours?Math.min(total/maxHours,1):0;
-        tdTotal.style.background=`rgba(0,102,204,${intensity})`;
-        tdTotal.style.color=intensity>0.5?'white':'black';
-        tdTotal.style.cursor='pointer';
-        tdTotal.onclick=()=>sortGrid('total',table);
-        tr.appendChild(tdTotal);
         tbody.appendChild(tr);
     });
 
-    // Grand total row
-    const trGrand = document.createElement('tr');
-    const tdLabel = document.createElement('td'); tdLabel.textContent='Grand total'; tdLabel.style.fontWeight='bold'; trGrand.appendChild(tdLabel);
-    weeks.forEach(w=>{
-        const td=document.createElement('td'); td.textContent=grandTotal[w].toFixed(1); td.style.fontWeight='bold';
-        const intensity=maxHours?Math.min(grandTotal[w]/maxHours,1):0;
-        td.style.background=`rgba(0,102,204,${intensity})`;
-        td.style.color=intensity>0.5?'white':'black';
-        trGrand.appendChild(td);
-    });
-    const tdAll=document.createElement('td'); tdAll.textContent=grandTotalAll.toFixed(1); tdAll.style.fontWeight='bold';
-    const intensity=maxHours?Math.min(grandTotalAll/maxHours,1):0;
-    tdAll.style.background=`rgba(0,102,204,${intensity})`;
-    tdAll.style.color=intensity>0.5?'white':'black';
-    trGrand.appendChild(tdAll);
+    const trGrand=document.createElement('tr');
+    const tdLabel=document.createElement('td'); tdLabel.textContent='Grand total'; tdLabel.style.fontWeight='bold'; trGrand.appendChild(tdLabel);
+    weeks.forEach(w=>{ const td=document.createElement('td'); td.textContent=grandTotal[w].toFixed(1); td.style.fontWeight='bold'; trGrand.appendChild(td); });
+    const tdAll=document.createElement('td'); tdAll.textContent=grandTotalAll.toFixed(1); tdAll.style.fontWeight='bold'; trGrand.appendChild(tdAll);
     tbody.appendChild(trGrand);
 
-    table.appendChild(tbody);
-    container.appendChild(table);
+    table.appendChild(tbody); container.appendChild(table);
 }
 
-// --- Sorting, Deep dive, Excel export functions omitted for brevity, reuse previous working versions ---
-// Make sure they are inside this DOMContentLoaded wrapper
+// --- Sort Table ---
+function sortTable(table,col){
+    let asc=!currentSort[col]; currentSort={}; currentSort[col]=asc;
+    const tbody=table.tBodies[0];
+    const rows=Array.from(tbody.rows).slice(0,-1);
+    rows.sort((a,b)=>{
+        const aVal=(col===0)?a.cells[col].textContent:parseFloat(a.cells[col].textContent)||0;
+        const bVal=(col===0)?b.cells[col].textContent:parseFloat(b.cells[col].textContent)||0;
+        if(aVal<bVal) return asc?-1:1;
+        if(aVal>bVal) return asc?1:-1;
+        return 0;
+    });
+    rows.forEach(r=>tbody.insertBefore(r,tbody.rows[tbody.rows.length-1]));
+}
+
+// --- Deep Dive ---
+function showDeepDive(rowName,week,loadData){
+    const sessions=[];
+    const weekStr=week.toString();
+    if(loadData[rowName] && loadData[rowName][weekStr]){
+        loadData[rowName][weekStr].forEach(i=>sessions.push(i.info||i));
+    }
+    if(!sessions.length) return;
+    modalBody.innerHTML=`<h3>${rowName} - Week ${week}</h3>`;
+    const table=document.createElement('table');
+    const trh=document.createElement('tr');
+    ["Activity","Module Code","Module Title","Session Title","Type","Day","Start","End","Location","Group","Notes"].forEach(h=>{
+        const th=document.createElement('th'); th.textContent=h; trh.appendChild(th);
+    }); table.appendChild(trh);
+    sessions.forEach(s=>{
+        const tr=document.createElement('tr');
+        ["Activity","Module Code","Module Title","Session Title","Type","Day","Start","End","Location","Group Information","Notes"].forEach(k=>{
+            const td=document.createElement('td'); td.textContent=s[k]||''; tr.appendChild(td);
+        });
+        table.appendChild(tr);
+    });
+    modalBody.appendChild(table);
+    modal.style.display='block';
+}
+
+// --- Analyse Button ---
+document.getElementById('analyseBtn').onclick=async function(){
+    const files=document.getElementById('fileInput').files;
+    if(!files.length){ alert('Please select at least one HTML file'); return; }
+    allData=[];
+    for(let f of files){
+        const text=await f.text();
+        allData.push(...parseHTMLTimetable(text));
+    }
+    const realistic=document.getElementById('realisticToggle').checked;
+    allLoadData=computeLoad(allData,'Staff',realistic);
+    allModuleLoad=computeLoad(allData,'Module',realistic);
+    renderGrid(allLoadData,'staffGridContainer');
+    renderGrid(allModuleLoad,'moduleGridContainer');
+};
+
+// --- Export Excel ---
+function exportGridExcel(loadData,filename){
+    const wb=XLSX.utils.book_new();
+    const rows=Object.keys(loadData).sort();
+    const weekSet=new Set(); rows.forEach(r=>Object.keys(loadData[r]).forEach(w=>weekSet.add(w)));
+    const weeks=Array.from(weekSet).sort((a,b)=>parseInt(a)-parseInt(b));
+    const wsData=[];
+    const header=[filename,...weeks.map(w=>'Week '+w),'Total']; wsData.push(header);
+    rows.forEach(r=>{
+        const row=[r]; let total=0;
+        weeks.forEach(w=>{
+            const val=loadData[r][w]||0; total+=val; row.push(val.toFixed(1));
+        });
+        row.push(total.toFixed(1)); wsData.push(row);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(wsData); XLSX.utils.book_append_sheet(wb,ws,filename);
+    XLSX.writeFile(wb,filename+'.xlsx');
+}
+document.getElementById('exportExcelStaff').onclick=()=>exportGridExcel(allLoadData,'Staff');
+document.getElementById('exportExcelModule').onclick=()=>exportGridExcel(allModuleLoad,'Module');
 
 });
 </script>
-
 </body>
 </html>
