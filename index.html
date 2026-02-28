@@ -656,12 +656,12 @@ tbody tr.clash-row td:first-child { border-left: 3px solid var(--red); }
 
     <div class="faq-item">
       <h3>What data does this tool need?</h3>
-      <p>At minimum a staff name or module name column. It works best with start time, end time, date or week number, and semester columns too.</p>
+      <p>At minimum a staff name or module name column. It works best with Start, End, Weeks, Day, and Staff columns — all of which are present in the standard UoN timetable export.</p>
     </div>
     <hr class="faq-hr">
     <div class="faq-item">
       <h3>How do I import data?</h3>
-      <p><strong>Upload:</strong> Go to your timetable page, use File → Save Page As → Web Page (HTML). Drop that file into the upload zone. The tool merges all matching tables automatically.</p>
+      <p><strong>Upload:</strong> On the UoN timetable system, use File → Save Page As → Web Page (HTML). Drop that file into the upload zone. The tool detects and merges all matching timetable tables automatically, including multi-staff rows.</p>
       <p><strong>Bookmarklet:</strong> Drag the "Scrape Timetable" button to your bookmarks bar. Navigate to your timetable page and click it — data is copied to clipboard. Switch back here and paste.</p>
       <p><strong>Multiple sources:</strong> You can load Semester 1 and Semester 2 from separate pages. Each goes through the mapping step and is merged into one combined dataset. Use the source list to remove individual imports.</p>
     </div>
@@ -680,7 +680,7 @@ tbody tr.clash-row td:first-child { border-left: 3px solid var(--red); }
       <h3>How does clash detection work?</h3>
       <p>⚡ Detect Clashes checks every staff member for sessions whose times overlap on the same day. It requires start and end times to be mapped.</p>
       <div class="faq-box">
-        <strong>1. Convert</strong> each session to an absolute time interval (date + start → date + end)<br>
+        <strong>1. Convert</strong> each session to a precise time slot (Week × 7 + Day-of-week + Start time)<br>
         <strong>2. Compare</strong> every pair of sessions per staff member for overlaps<br>
         <strong>3. Flag</strong> overlapping sessions with a red ⚠ marker<br>
         <strong>4. Merge</strong> overlapping intervals to compute true effective hours
@@ -870,26 +870,44 @@ tbody tr.clash-row td:first-child { border-left: 3px solid var(--red); }
 document.addEventListener('DOMContentLoaded', () => {
 
 // ── CONSTANTS ────────────────────────────────────────────────────────────────
-const FIELD_KEYS = ['staff','module','date','startTime','endTime','duration','type','room','week','semester'];
-const FIELD_LABELS = {staff:'Staff Name',module:'Module/Course',date:'Date',startTime:'Start Time',endTime:'End Time',duration:'Duration (hrs)',type:'Session Type',room:'Room',week:'Week Number',semester:'Semester'};
+const FIELD_KEYS = ['staff','module','sessionTitle','type','week','day','startTime','endTime','duration','room','notes','semester'];
+const FIELD_LABELS = {staff:'Staff',module:'Module Code',sessionTitle:'Session Title',type:'Type',week:'Weeks',day:'Day',startTime:'Start',endTime:'End',duration:'Duration (hrs)',room:'Location',notes:'Notes',semester:'Semester'};
 const HINTS = {
-  staff:['staff','lecturer','tutor','teacher','instructor','name','faculty','convener'],
-  module:['module','course','unit','subject','code','title','class'],
-  date:['date','day'],
-  startTime:['start','begin','from'],
-  endTime:['end','finish','until'],
-  duration:['duration','hours','hrs','length','mins'],
-  type:['type','session','activity','kind','format'],
-  room:['room','venue','location','building'],
-  week:['week','wk'],
-  semester:['semester','term','period','sem'],
+  staff:    ['staff'],
+  module:   ['module code','module','mod'],
+  sessionTitle: ['session title','title','activity','actname'],
+  type:     ['type','acttype'],
+  week:     ['weeks','week','wk'],
+  day:      ['day'],
+  startTime:['start'],
+  endTime:  ['end'],
+  duration: ['duration','hours','hrs','length'],
+  room:     ['location','room','venue','building'],
+  notes:    ['notes','group information','group info'],
+  semester: ['semester','term','period','sem'],
+};
+// Column name aliases — exact header text → field key (for auto-mapping without ambiguity)
+const EXACT_MAP = {
+  'Activity':          'sessionTitle',
+  'Module Code':       'module',
+  'Module Title':      'sessionTitle',  // fallback if Session Title absent
+  'Session Title':     'sessionTitle',
+  'Type':              'type',
+  'Weeks':             'week',
+  'Day':               'day',
+  'Start':             'startTime',
+  'End':               'endTime',
+  'Staff':             'staff',
+  'Location':          'room',
+  'Group Information': 'notes',
+  'Notes':             'notes',
 };
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let sources   = [];   // {id, name, icon, mappedRows}
 let mapped    = [];   // flattened all sources
 let pending   = {rawRows:[], columns:[], name:'', icon:'📄'};
-let clashInfo = {run:false, active:false, pairs:[], effHours:{}};
+let clashInfo = {run:false, active:false, pairs:[], effHours:{}, effHoursPerWeek:{}};
 let sortState = {};   // {tableId: {col, dir}}
 let drillIndex= {};   // key -> rows[]
 let heatSort  = {week: null, dir: -1}; // null = sort by name
@@ -1015,7 +1033,7 @@ function doPaste() {
 function clearAll() {
   sources = []; mapped = [];
   pending = {rawRows:[], columns:[], name:'', icon:'📄'};
-  clashInfo = {run:false, active:false, pairs:[], effHours:{}};
+  clashInfo = {run:false, active:false, pairs:[], effHours:{}, effHoursPerWeek:{}};
   sortState = {};
   document.getElementById('pasteArea').value = '';
   document.getElementById('sourcesWrap').style.display = 'none';
@@ -1112,6 +1130,13 @@ function csvLine(line) {
 function showMapping() {
   const grid = document.getElementById('mapGrid');
   grid.innerHTML = '';
+  // Build a reverse map: column header -> best field key via exact match
+  const exactAssigned = {};
+  pending.columns.forEach(col => {
+    const key = EXACT_MAP[col.trim()];
+    if (key && !exactAssigned[key]) exactAssigned[key] = col;
+  });
+
   FIELD_KEYS.forEach(key => {
     const div = document.createElement('div');
     div.className = 'map-field';
@@ -1125,8 +1150,11 @@ function showMapping() {
       opt.value = col; opt.textContent = col;
       sel.appendChild(opt);
     });
-    const match = pending.columns.find(c => HINTS[key].some(h => c.toLowerCase().includes(h)));
-    if (match) sel.value = match;
+    // Priority: exact match > hints fallback
+    const exactMatch = exactAssigned[key];
+    const hintMatch  = pending.columns.find(c => (HINTS[key]||[]).some(h => c.toLowerCase().includes(h)));
+    if (exactMatch) sel.value = exactMatch;
+    else if (hintMatch) sel.value = hintMatch;
     div.appendChild(lbl); div.appendChild(sel);
     grid.appendChild(div);
   });
@@ -1150,10 +1178,13 @@ function applyMapping() {
   const newRows = pending.rawRows.map(row => {
     const r = {};
     FIELD_KEYS.forEach(k => r[k] = mapping[k] ? (row[mapping[k]]||'') : '');
+    // Normalise day capitalisation
+    if (r.day) r.day = r.day.trim().charAt(0).toUpperCase() + r.day.trim().slice(1).toLowerCase();
+    // Duration from start/end if not provided
     if (!r.duration && r.startTime && r.endTime) r.duration = calcDuration(r.startTime, r.endTime);
     if (!r.duration) r.duration = 1;
     else r.duration = parseFloat(r.duration) || 1;
-    if (!r.week && r.date) r.week = dateToWeek(r.date);
+    // Semester from week number
     if (!r.semester && r.week) r.semester = weekToSem(+r.week);
     return r;
   }).filter(r => r.staff || r.module);
@@ -1175,16 +1206,20 @@ function rebuildMapped() {
 // When clash mode is active, clashing rows for a staff member are scaled
 // so that the staff member's total equals their effective (non-overlapping) hours.
 function effDuration(row) {
-  if (!clashInfo.active || !row.staff) return row.duration;
-  const eff = clashInfo.effHours[row.staff];
-  if (eff === undefined) return row.duration;
-  // Calculate raw total for this staff member
-  const rawTotal = mapped
-    .filter(r => r.staff === row.staff)
-    .reduce((s, r) => s + r.duration, 0);
-  if (!rawTotal) return row.duration;
-  // Scale this row proportionally
-  return row.duration * (eff / rawTotal);
+  if (!clashInfo.active) return row.duration;
+  // Use the per-row effective duration computed during clash detection if available
+  if (row._effDuration !== undefined) return row._effDuration;
+  return row.duration;
+}
+
+// Format hours as e.g. "1h 30m", "45m", "2h"
+function fmtHrs(h) {
+  const totalMins = Math.round(h * 60);
+  const hh = Math.floor(totalMins / 60);
+  const mm = totalMins % 60;
+  if (hh === 0) return `${mm}m`;
+  if (mm === 0) return `${hh}h`;
+  return `${hh}h ${mm}m`;
 }
 
 // ── SOURCES LIST ──────────────────────────────────────────────────────────────
@@ -1222,31 +1257,49 @@ function removeSource(id) {
 // ── TIME HELPERS ──────────────────────────────────────────────────────────────
 function toMins(s) {
   if (!s) return null;
-  const ampm = s.match(/(\d+)(?::(\d+))?\s*(am|pm)/i);
+  const str = String(s).trim();
+  // 12-hour am/pm: "9:30am", "1pm"
+  const ampm = str.match(/(\d+)(?::(\d+))?\s*(am|pm)/i);
   if (ampm) {
     let h=+ampm[1], m=+(ampm[2]||0);
     if (ampm[3].toLowerCase()==='pm' && h!==12) h+=12;
     if (ampm[3].toLowerCase()==='am' && h===12) h=0;
     return h*60+m;
   }
-  const hm = s.match(/(\d+):(\d+)/);
-  return hm ? +hm[1]*60 + +hm[2] : null;
+  // HH:MM or H:MM with colon
+  const hm = str.match(/^(\d{1,2}):(\d{2})$/);
+  if (hm) return +hm[1]*60 + +hm[2];
+  // 4-digit HHMM e.g. "1300", "0900"
+  const hhmm = str.match(/^(\d{2})(\d{2})$/);
+  if (hhmm) return +hhmm[1]*60 + +hhmm[2];
+  // 3-digit HMM e.g. "930" = 09:30
+  const hmm = str.match(/^(\d)(\d{2})$/);
+  if (hmm) return +hmm[1]*60 + +hmm[2];
+  return null;
 }
 function calcDuration(st, en) {
   const s=toMins(st), e=toMins(en);
   if (s===null||e===null) return 1;
   return Math.max(0.5, (e-s)/60);
 }
+// Day-of-week index for clash anchoring (Monday=0 … Sunday=6)
+const DAY_INDEX = {Monday:0,Tuesday:1,Wednesday:2,Thursday:3,Friday:4,Saturday:5,Sunday:6,
+                   Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+
 function toAbsInterval(row) {
-  let dayOffset = 0;
-  if (row.date) {
-    try { const d=new Date(row.date); if(!isNaN(d)) dayOffset=Math.floor(d.getTime()/86400000)*1440; } catch(e){}
-  }
+  // Anchor = week * 7 days + day-of-week
+  // This ensures Monday W5 never overlaps with Tuesday W5,
+  // and W5 never overlaps with W6.
+  const weekN = parseInt(row.week) || 0;
+  const dayN  = row.day ? (DAY_INDEX[row.day] ?? 0) : 0;
+  // Each week = 7*24*60 mins apart; each day = 24*60 mins apart
+  const dayOffset = (weekN * 7 + dayN) * 1440;
+
   const s = toMins(row.startTime);
-  if (s===null) return null;
+  if (s === null) return null;
   let e = toMins(row.endTime);
-  if (e===null) e = s + Math.round((row.duration||1)*60);
-  return [dayOffset+s, dayOffset+e];
+  if (e === null) e = s + Math.round((row.duration || 1) * 60);
+  return [dayOffset + s, dayOffset + e];
 }
 function mergeIntervals(ivs) {
   if (!ivs.length) return 0;
@@ -1259,9 +1312,7 @@ function mergeIntervals(ivs) {
   }
   return m.reduce((s,[a,b])=>s+(b-a),0)/60;
 }
-function dateToWeek(ds) {
-  try { const d=new Date(ds); if(isNaN(d)) return ''; const j=new Date(d.getFullYear(),0,1); return Math.ceil(((d-j)/86400000+j.getDay()+1)/7); } catch(e){ return ''; }
-}
+// dateToWeek removed — week is now a direct column
 function weekToSem(w) {
   if (!w) return 'Unknown';
   if (w<=20) return 'Semester 1';
@@ -1271,7 +1322,7 @@ function weekToSem(w) {
 
 // ── BUILD RESULTS ─────────────────────────────────────────────────────────────
 function buildResults() {
-  clashInfo = {run:false, active:false, pairs:[], effHours:{}};
+  clashInfo = {run:false, active:false, pairs:[], effHours:{}, effHoursPerWeek:{}};
   const cb = document.getElementById('clashBtn');
   cb.textContent = '⚡ Detect Clashes';
   cb.className = 'btn btn-danger';
@@ -1296,7 +1347,7 @@ function buildKPIs() {
 
   const kpis = [
     [mapped.length,'Sessions',''],
-    [totalHrs.toFixed(1), clashInfo.active ? 'Effective Hours' : 'Total Hours',''],
+    [fmtHrs(totalHrs), clashInfo.active ? 'Effective Hours' : 'Total Hours',''],
     [staff.size,'Staff',''],
     [mods.size,'Modules',''],
     [weeks.size,'Weeks',''],
@@ -1399,7 +1450,7 @@ function rerender(tbl) {
 
 function miniBar(val, max) {
   const pct = max > 0 ? (val/max*100).toFixed(1) : 0;
-  return `${val.toFixed(1)}<span class="mini-bar"><span class="mini-bar-fill" style="width:${pct}%"></span></span>`;
+  return `${fmtHrs(val)}<span class="mini-bar"><span class="mini-bar-fill" style="width:${pct}%"></span></span>`;
 }
 
 // ── BY STAFF ──────────────────────────────────────────────────────────────────
@@ -1454,7 +1505,7 @@ function renderStaff() {
     if (k==='effHours') {
       const eff = row.effHours??row.hours;
       const diff = row.hours - eff;
-      return `<strong>${eff.toFixed(1)}</strong>${diff>0.01?` <span style="color:var(--red);font-size:.75rem">(-${diff.toFixed(1)})</span>`:''}`;
+      return `<strong>${fmtHrs(eff)}</strong>${diff>0.01?` <span style="color:var(--red);font-size:.75rem">(-${fmtHrs(diff)})</span>`:''}`;
     }
     if (k==='clashes') return row.clashes>0 ? `<span class="badge badge-red">${row.clashes}</span>` : `<span class="badge badge-ok">0</span>`;
     if (k==='sessions') return `<span class="badge badge-green">${row.sessions}</span>`;
@@ -1534,14 +1585,14 @@ function renderSemester() {
   });
   const rows = Object.entries(agg).map(([sem,d])=>({
     semester:sem, hours:d.hours, sessions:d.sessions, staffN:d.staff.size, modsN:d.mods.size,
-    avgPerStaff: d.staff.size ? (d.hours/d.staff.size).toFixed(1) : '—',
+    avgPerStaff: d.staff.size ? fmtHrs(d.hours/d.staff.size) : '—',
     _drillKey:'sem:'+sem, _drillLabel:'Semester'
   }));
   renderTable('semesterTbl', rows,
     [['semester','Semester'],['hours','Total Hours'],['sessions','Sessions'],['staffN','Staff'],['modsN','Modules'],['avgPerStaff','Avg Hrs/Staff']],
     (row,k) => {
       if (k==='sessions') return `<span class="badge badge-green">${row.sessions}</span>`;
-      if (k==='hours') return `<strong>${(+row.hours).toFixed(1)}</strong>`;
+      if (k==='hours') return `<strong>${fmtHrs(+row.hours)}</strong>`;
       return row[k]??'';
     }
   );
@@ -1560,14 +1611,24 @@ function renderHeatmap() {
     return;
   }
 
-  // Build grid
+  // Build grid — raw hours first, then overwrite with exact effective hours if clash mode active
   const grid = {};
   mapped.forEach(r => {
     if (!r.staff||!r.week) return;
     const k = r.staff+'|'+r.week;
     if (!grid[k]) grid[k]={hours:0,sessions:0};
-    grid[k].hours += effDuration(r); grid[k].sessions++;
+    grid[k].hours += r.duration; grid[k].sessions++;
   });
+
+  // Overwrite hours with exact per-week effective hours when clash mode is on
+  if (clashInfo.active) {
+    Object.entries(clashInfo.effHoursPerWeek).forEach(([staff, weekMap]) => {
+      Object.entries(weekMap).forEach(([wk, effH]) => {
+        const k = staff+'|'+wk;
+        if (grid[k]) grid[k].hours = effH;
+      });
+    });
+  }
 
   // Total hours per staff member
   const staffTotals = {};
@@ -1577,7 +1638,11 @@ function renderHeatmap() {
 
   // Sort staff list
   let staffList;
-  if (heatSort.week !== null) {
+  if (heatSort.week === '__total__') {
+    staffList = [...allStaff].sort((a,b) => {
+      return heatSort.dir === -1 ? staffTotals[b]-staffTotals[a] : staffTotals[a]-staffTotals[b];
+    });
+  } else if (heatSort.week !== null) {
     staffList = [...allStaff].sort((a,b) => {
       const va = grid[a+'|'+heatSort.week]?.[metric==='hours'?'hours':'sessions'] || 0;
       const vb = grid[b+'|'+heatSort.week]?.[metric==='hours'?'hours':'sessions'] || 0;
@@ -1607,7 +1672,11 @@ function renderHeatmap() {
       const cls = isActive ? ('sort-active ' + (heatSort.dir===-1?'sort-desc':'sort-asc')) : '';
       return `<div class="heatmap-col-header ${cls}" onclick="heatSortByWeek('${wk}')" title="Sort by Week ${wk} — click to rank staff by load">W${wk}</div>`;
     }).join('') +
-    '<div class="heatmap-row-total" style="font-family:\'DM Mono\',monospace;font-size:.6rem;color:var(--muted);padding-left:8px;">Total</div>' +
+    (() => {
+      const isTotalActive = heatSort.week === '__total__';
+      const totalCls = isTotalActive ? ('sort-active ' + (heatSort.dir===-1?'sort-desc':'sort-asc')) : '';
+      return `<div class="heatmap-col-header ${totalCls}" onclick="heatSortByWeek('__total__')" style="width:auto;padding:3px 8px;" title="Sort by total hours">Total</div>`;
+    })() +
     '</div>';
 
   // Data rows — always show hours in cell labels
@@ -1621,19 +1690,18 @@ function renderHeatmap() {
         const sess = grid[k]?.sessions|| 0;
         const scaleV = metric==='hours' ? hrs : sess;
         const bg  = heatColour(scaleV, maxV);
-        const textCol = scaleV/maxV > 0.5 ? 'rgba(255,255,255,.9)' : 'rgba(16,38,59,.8)';
         const isSort  = heatSort.week === wk;
         const outline = isSort ? 'outline:2px solid var(--gold);outline-offset:-2px;' : '';
-        const lbl  = hrs > 0 ? hrs.toFixed(1) : '';
+        const lbl  = hrs > 0 ? fmtHrs(hrs) : '';
         const tip  = hrs > 0
-          ? `${staff} · Wk${wk}: ${hrs.toFixed(1)} hrs · ${sess} session${sess!==1?'s':''} — click to view`
+          ? `${staff} · Wk${wk}: ${fmtHrs(hrs)} · ${sess} session${sess!==1?'s':''} — click to view`
           : `${staff} · Wk${wk}: no teaching`;
         const click = hrs > 0
           ? `onclick="openDrawer('Staff Member','${safeStaff}',(window._drillIndex||{})['${safeStaff}|wk${wk}']||[])"`
           : '';
-        return `<div class="heatmap-cell" ${click} style="background:${bg};color:${textCol};${outline}" title="${tip}">${lbl}</div>`;
+        return `<div class="heatmap-cell" ${click} style="background:${bg};color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);${outline}" title="${tip}">${lbl}</div>`;
       }).join('') +
-      `<div class="heatmap-row-total" style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);padding-left:8px;align-self:center;">${staffTotals[staff]>0?staffTotals[staff].toFixed(1)+' h':''}</div>` +
+      `<div class="heatmap-row-total" style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);padding-left:8px;align-self:center;">${staffTotals[staff]>0?fmtHrs(staffTotals[staff]):''}</div>` +
       '</div>';
   }).join('');
 
@@ -1658,10 +1726,12 @@ function renderClashes() {
     return;
   }
   renderTable('clashTbl', pairs,
-    [['staff','Staff'],['date','Date'],['timeA','Session A'],['modA','Module A'],['timeB','Session B'],['modB','Module B'],['mins','Overlap (mins)']],
+    [['staff','Staff'],['week','Week'],['day','Day'],['timeA','Session A'],['modA','Module A'],['timeB','Session B'],['modB','Module B'],['mins','Overlap']],
     (row,k) => {
       if (k==='mins') return `<span class="badge badge-red">${row[k]} min${row[k]!==1?'s':''}</span>`;
       if (k==='staff') return `<strong>${row[k]}</strong>`;
+      if (k==='day')   return row[k] ? `<span class="badge badge-navy">${row[k]}</span>` : '—';
+      if (k==='week')  return row[k] ? `<span class="badge badge-gold">${row[k]}</span>` : '—';
       return row[k]||'—';
     }
   );
@@ -1714,7 +1784,7 @@ document.getElementById('clashBtn').addEventListener('click', () => {
   document.getElementById('clashSummary').textContent = 'Analysing…';
 
   setTimeout(() => {
-    mapped.forEach(r => { r._clash=false; r._clashWith=''; });
+    mapped.forEach(r => { r._clash=false; r._clashWith=''; r._effDuration=undefined; });
 
     const byStaff = {};
     mapped.forEach((r,i) => {
@@ -1725,10 +1795,51 @@ document.getElementById('clashBtn').addEventListener('click', () => {
 
     const pairs = [];
     const effHours = {};
+    const effHoursPerWeek = {}; // effHoursPerWeek[staff][week] = effective hrs that week
 
     Object.entries(byStaff).forEach(([staff, sessions]) => {
       const ivs = sessions.map(s=>s.iv).filter(Boolean);
       effHours[staff] = ivs.length ? mergeIntervals(ivs) : sessions.reduce((s,x)=>s+(x.row.duration||1),0);
+
+      // Per-week effective hours for the heatmap
+      effHoursPerWeek[staff] = {};
+      const byWeek = {};
+      sessions.forEach(s => {
+        const wk = s.row.week || '__none__';
+        if (!byWeek[wk]) byWeek[wk] = [];
+        byWeek[wk].push(s);
+      });
+      Object.entries(byWeek).forEach(([wk, wkSessions]) => {
+        const wkIvs = wkSessions.map(s=>s.iv).filter(Boolean);
+        effHoursPerWeek[staff][wk] = wkIvs.length
+          ? mergeIntervals(wkIvs)
+          : wkSessions.reduce((s,x)=>s+(x.row.duration||1), 0);
+      });
+
+      // Store _effDuration on each row = actual non-overlapping minutes this session contributes.
+      // Sort sessions by start time; each session gets credit for any part of its interval
+      // not already covered by an earlier session.
+      const sorted = sessions.filter(s=>s.iv).slice().sort((a,b)=>a.iv[0]-b.iv[0]);
+      let covered = []; // list of [start,end] already allocated
+      function uncoveredLength(iv) {
+        // Length of iv not covered by anything in `covered`
+        let total = 0, cur = iv[0];
+        const relevant = covered.filter(c=>c[1]>iv[0]&&c[0]<iv[1]).sort((a,b)=>a[0]-b[0]);
+        for (const c of relevant) {
+          if (c[0] > cur) total += Math.min(c[0],iv[1]) - cur;
+          cur = Math.max(cur, c[1]);
+          if (cur >= iv[1]) break;
+        }
+        if (cur < iv[1]) total += iv[1] - cur;
+        return total;
+      }
+      sorted.forEach(s => {
+        const mins = uncoveredLength(s.iv);
+        s.row._effDuration = mins / 60;
+        covered.push(s.iv);
+      });
+      // Sessions without an interval keep their raw duration
+      sessions.filter(s=>!s.iv).forEach(s => { s.row._effDuration = s.row.duration; });
       for (let a=0; a<sessions.length; a++) {
         for (let b=a+1; b<sessions.length; b++) {
           const sa=sessions[a], sb=sessions[b];
@@ -1739,15 +1850,16 @@ document.getElementById('clashBtn').addEventListener('click', () => {
             const mins = Math.round(oe-os);
             const dA = `${sa.row.startTime||'?'}–${sa.row.endTime||'?'} ${sa.row.module||''}`.trim();
             const dB = `${sb.row.startTime||'?'}–${sb.row.endTime||'?'} ${sb.row.module||''}`.trim();
-            sa.row._clash=true; sa.row._clashWith='Clashes with: '+dB;
-            sb.row._clash=true; sb.row._clashWith='Clashes with: '+dA;
+            sa.row._clash=true; sa.row._clashWith=`Clashes with: ${sb.row.day||''} ${sb.row.startTime||'?'}–${sb.row.endTime||'?'} ${sb.row.module||''}`.trim();
+            sb.row._clash=true; sb.row._clashWith=`Clashes with: ${sa.row.day||''} ${sa.row.startTime||'?'}–${sa.row.endTime||'?'} ${sa.row.module||''}`.trim();
             pairs.push({
               staff,
-              date: sa.row.date||(sa.row.week?'Wk '+sa.row.week:'—'),
+              week: sa.row.week ? `Week ${sa.row.week}` : '—',
+              day:  sa.row.day  || '—',
               timeA:`${sa.row.startTime||'?'}–${sa.row.endTime||'?'}`,
-              modA: sa.row.module||'—',
+              modA: [sa.row.sessionTitle, sa.row.module].filter(Boolean).join(' · ') || '—',
               timeB:`${sb.row.startTime||'?'}–${sb.row.endTime||'?'}`,
-              modB: sb.row.module||'—',
+              modB: [sb.row.sessionTitle, sb.row.module].filter(Boolean).join(' · ') || '—',
               mins
             });
           }
@@ -1755,7 +1867,7 @@ document.getElementById('clashBtn').addEventListener('click', () => {
       }
     });
 
-    clashInfo = {run:true, active:true, pairs, effHours};
+    clashInfo = {run:true, active:true, pairs, effHours, effHoursPerWeek};
 
     btn.disabled = false;
     btn.className = pairs.length ? 'btn btn-danger done' : 'btn btn-primary';
@@ -1780,42 +1892,29 @@ function openDrawer(label, title, sessions) {
   document.getElementById('ddLabel').textContent = label;
   document.getElementById('ddTitle').textContent = title;
 
-  const hrs   = sessions.reduce((s,r)=>s+r.duration,0);
+  const hrs   = sessions.reduce((s,r)=>s+effDuration(r),0);
   const staff = new Set(sessions.map(r=>r.staff).filter(Boolean));
   const mods  = new Set(sessions.map(r=>r.module).filter(Boolean));
   const clN   = sessions.filter(r=>r._clash).length;
 
-  const stats = [[sessions.length,'Sessions'],[hrs.toFixed(1),'Hours'],[mods.size>1?mods.size:staff.size, mods.size>1?'Modules':'Staff']];
+  const stats = [[sessions.length,'Sessions'],[fmtHrs(hrs), clashInfo.active?'Eff. Hours':'Hours'],[mods.size>1?mods.size:staff.size, mods.size>1?'Modules':'Staff']];
   if (clashInfo.run) stats.push([clN,'Clashes']);
   document.getElementById('ddStats').innerHTML = stats.map(([v,l])=>
     `<div class="dd-stat"><div class="dd-stat-val">${v}</div><div class="dd-stat-lbl">${l}</div></div>`
   ).join('');
 
-  // Helper: get day-of-week from a row
-  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  // Get day-of-week: use the mapped 'day' field directly, then scan other fields
+  const DAY_FULL = {mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday',sat:'Saturday',sun:'Sunday',
+                    monday:'Monday',tuesday:'Tuesday',wednesday:'Wednesday',thursday:'Thursday',friday:'Friday',saturday:'Saturday',sunday:'Sunday'};
   function getDayOfWeek(r) {
-    // 1. Try parsing a proper date string
-    if (r.date) {
-      const d = new Date(r.date);
-      if (!isNaN(d)) return DAYS[d.getDay()];
+    if (r.day) {
+      const k = r.day.toLowerCase().trim().slice(0,3);
+      return DAY_FULL[k] || r.day;
     }
-    // 2. Scan ALL field values for a day name anywhere in the string
-    //    (handles "Monday 14 Oct", "14/10 Monday", "MON", etc.)
-    const DAY_ALIASES = {
-      monday:'Monday', mon:'Monday',
-      tuesday:'Tuesday', tue:'Tuesday', tues:'Tuesday',
-      wednesday:'Wednesday', wed:'Wednesday',
-      thursday:'Thursday', thu:'Thursday', thur:'Thursday', thurs:'Thursday',
-      friday:'Friday', fri:'Friday',
-      saturday:'Saturday', sat:'Saturday',
-      sunday:'Sunday', sun:'Sunday',
-    };
+    // Fallback: scan all fields
     for (const val of Object.values(r)) {
-      const s = String(val||'').toLowerCase().trim();
-      for (const [alias, full] of Object.entries(DAY_ALIASES)) {
-        // Match as whole word (with word boundaries)
-        if (new RegExp('\\b' + alias + '\\b').test(s)) return full;
-      }
+      const s = String(val||'').toLowerCase().trim().slice(0,3);
+      if (DAY_FULL[s]) return DAY_FULL[s];
     }
     return null;
   }
@@ -1823,7 +1922,7 @@ function openDrawer(label, title, sessions) {
   // Group by week, then sub-group by day
   const grouped = {};
   sessions.forEach(r => {
-    const g = r.week ? `Week ${r.week}` : (r.date || r.semester || 'Unscheduled');
+    const g = r.week ? `Week ${r.week}` : (r.semester || 'Unscheduled');
     if (!grouped[g]) grouped[g] = [];
     grouped[g].push(r);
   });
@@ -1838,8 +1937,8 @@ function openDrawer(label, title, sessions) {
   let html = '';
   grpKeys.forEach(grp => {
     const allSess = grouped[grp];
-    const totalHrs = allSess.reduce((s,r)=>s+(r.duration||1),0);
-    html += `<div class="dd-group-hdr">${grp} <span style="opacity:.6;font-weight:400">— ${allSess.length} session${allSess.length!==1?'s':''} · ${totalHrs.toFixed(1)}h</span></div>`;
+    const totalHrs = allSess.reduce((s,r)=>s+effDuration(r),0);
+    html += `<div class="dd-group-hdr">${grp} <span style="opacity:.6;font-weight:400">— ${allSess.length} session${allSess.length!==1?'s':''} · ${fmtHrs(totalHrs)}</span></div>`;
 
     // Sub-group by day of week if available
     const byDay = {};
@@ -1865,13 +1964,14 @@ function openDrawer(label, title, sessions) {
         }
         daySess.forEach(r => {
           const time = r.startTime ? `${r.startTime}${r.endTime?'–'+r.endTime:''}` : '—';
-          const meta = [r.type, r.room].filter(Boolean).join(' · ');
-          const who  = label==='Staff Member' ? (r.module||'—') : (r.staff||'—');
-          const secondary = label==='Staff Member' ? '' : `<div class="dd-meta">${r.staff||''}</div>`;
+          const titleLine = [r.sessionTitle, r.module].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
+          const who  = label==='Staff Member' ? (titleLine||'—') : (r.staff||'—');
+          const secondary = label==='Staff Member' ? '' : `<div class="dd-meta">${r.module||''}</div>`;
+          const meta = [r.type, r.room, r.notes].filter(Boolean).join(' · ');
           html += `<div class="dd-row${r._clash?' clash':''}">
             <div class="dd-time">${time}</div>
             <div><div class="dd-mod">${who}</div>${secondary}${meta?`<div class="dd-meta">${meta}</div>`:''}</div>
-            <div><div class="dd-hrs">${(r.duration||1).toFixed(1)}h</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
+            <div><div class="dd-hrs">${fmtHrs(effDuration(r))}${r._clash&&clashInfo.active?'<span style="font-size:.58rem;color:rgba(255,255,255,.7);display:block;">raw: ${fmtHrs(r.duration||1)}</span>':''}</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
           </div>`;
         });
       });
@@ -1884,10 +1984,14 @@ function openDrawer(label, title, sessions) {
         const who  = label==='Staff Member' ? (r.module||'—') : (r.staff||'—');
         const secondary = label==='Staff Member' ? '' : `<div class="dd-meta">${r.staff||''}</div>`;
         const flatDay = getDayOfWeek(r);
+        const titleLineF = [r.sessionTitle, r.module].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
+        const whoF  = label==='Staff Member' ? (titleLineF||'—') : (r.staff||'—');
+        const secondaryF = label==='Staff Member' ? '' : `<div class="dd-meta">${r.module||''}</div>`;
+        const metaF = [r.type, r.room, r.notes].filter(Boolean).join(' · ');
         html += `<div class="dd-row${r._clash?' clash':''}">
-          <div class="dd-time">${time}${flatDay?`<div class="dd-meta" style="margin-top:3px;color:var(--navy);opacity:.7">${flatDay.slice(0,3)}</div>`:''}</div>
-          <div><div class="dd-mod">${who}</div>${secondary}${meta?`<div class="dd-meta">${meta}</div>`:''}</div>
-          <div><div class="dd-hrs">${(r.duration||1).toFixed(1)}h</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
+          <div class="dd-time">${time}${flatDay?`<div class="dd-meta" style="margin-top:3px;color:var(--navy);font-weight:600">${flatDay}</div>`:''}</div>
+          <div><div class="dd-mod">${whoF}</div>${secondaryF}${metaF?`<div class="dd-meta">${metaF}</div>`:''}</div>
+          <div><div class="dd-hrs">${fmtHrs(effDuration(r))}${r._clash&&clashInfo.active?'<span style="font-size:.58rem;color:rgba(255,255,255,.7);display:block;">raw: ${fmtHrs(r.duration||1)}</span>':''}</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
         </div>`;
       });
     }
@@ -1945,8 +2049,8 @@ function exportCSV(type) {
     mapped.forEach(r=>{const s=r.semester||'Unknown';if(!agg[s])agg[s]={h:0,ses:0,st:new Set(),m:new Set()};agg[s].h+=r.duration;agg[s].ses++;if(r.staff)agg[s].st.add(r.staff);if(r.module)agg[s].m.add(r.module);});
     rows=Object.entries(agg).map(([s,d])=>`"${s}",${d.h.toFixed(1)},${d.ses},${d.st.size},${d.m.size}`);
   } else if (type==='clashes') {
-    headers=['Staff','Date','Session A','Module A','Session B','Module B','Overlap mins'];
-    rows=clashInfo.pairs.map(p=>`"${p.staff}","${p.date}","${p.timeA}","${p.modA}","${p.timeB}","${p.modB}",${p.mins}`);
+    headers=['Staff','Week','Day','Session A','Module A','Session B','Module B','Overlap mins'];
+    rows=clashInfo.pairs.map(p=>`"${p.staff}","${p.week}","${p.day}","${p.timeA}","${p.modA}","${p.timeB}","${p.modB}",${p.mins}`);
   }
   const csv = [headers.join(','),...rows].join('\n');
   const a = document.createElement('a');
