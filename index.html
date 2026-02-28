@@ -785,6 +785,18 @@ tbody tr.clash-row td:first-child { border-left: 3px solid var(--red); }
   <!-- ── RESULTS ── -->
   <div id="results" style="display:none;">
 
+    <!-- Analysis title -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;" id="analysisTitleBar">
+      <div id="analysisTitleDisplay" style="flex:1;font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;color:var(--navy);cursor:pointer;border-bottom:2px dashed transparent;padding-bottom:2px;transition:border-color .15s;" title="Click to set a title for this analysis" onclick="startEditTitle()">Untitled Analysis</div>
+      <button class="btn btn-outline btn-sm" onclick="startEditTitle()" id="editTitleBtn" title="Edit title">✏ Edit title</button>
+    </div>
+    <div id="analysisTitleEdit" style="display:none;align-items:center;gap:8px;margin-bottom:20px;">
+      <input type="text" id="analysisTitleInput" placeholder="e.g. Semester 1 2024/25 — School of Computer Science"
+        style="flex:1;font-family:'Source Sans 3',sans-serif;font-size:1rem;padding:8px 12px;border:2px solid var(--navy);border-radius:7px;outline:none;color:var(--text);">
+      <button class="btn btn-primary btn-sm" onclick="saveTitle()">Save</button>
+      <button class="btn btn-outline btn-sm" onclick="cancelTitle()">Cancel</button>
+    </div>
+
     <div id="kpiRow"></div>
 
     <!-- Toolbar: clash button -->
@@ -2073,8 +2085,36 @@ function setStatus(type, msg) {
   document.getElementById('statusText').textContent = msg;
 }
 
+  // ── ANALYSIS TITLE ───────────────────────────────────────────────────────────
+  function startEditTitle() {
+    const current = document.getElementById('analysisTitleDisplay').textContent;
+    document.getElementById('analysisTitleInput').value = current === 'Untitled Analysis' ? '' : current;
+    document.getElementById('analysisTitleDisplay').parentElement.style.display = 'none';
+    const editRow = document.getElementById('analysisTitleEdit');
+    editRow.style.display = 'flex';
+    document.getElementById('analysisTitleInput').focus();
+  }
+  function saveTitle() {
+    const val = document.getElementById('analysisTitleInput').value.trim();
+    document.getElementById('analysisTitleDisplay').textContent = val || 'Untitled Analysis';
+    document.getElementById('analysisTitleEdit').style.display = 'none';
+    document.getElementById('analysisTitleDisplay').parentElement.style.display = 'flex';
+  }
+  function cancelTitle() {
+    document.getElementById('analysisTitleEdit').style.display = 'none';
+    document.getElementById('analysisTitleDisplay').parentElement.style.display = 'flex';
+  }
+  // Save on Enter key
+  document.getElementById('analysisTitleInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveTitle();
+    if (e.key === 'Escape') cancelTitle();
+  });
+
   // ── EXPOSE GLOBALS for inline onclick attributes in dynamic HTML ──────────────
   window.openDrawer     = openDrawer;
+  window.startEditTitle = startEditTitle;
+  window.saveTitle      = saveTitle;
+  window.cancelTitle    = cancelTitle;
   window.closeDrawer    = closeDrawer;
   window.switchTab      = switchTab;
   window.heatSortByWeek = heatSortByWeek;
