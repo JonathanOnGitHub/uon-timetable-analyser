@@ -2,7 +2,7 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<title>University of Nottingham Timetable Staff & Module Load Analyser</title>
+<title>University Timetable Staff & Module Load Analyser</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f5f5; color:#041e42;}
@@ -34,12 +34,12 @@ tr:nth-child(even) { background:#f2f2f2;}
 <body>
 
 <header>
-    <h1>University of Nottingham Timetable Staff & Module Load Analyser</h1>
+    <h1>University Timetable Staff & Module Load Analyser</h1>
 </header>
 
 <main>
     <div class="instructions">
-        <p><strong>Note:</strong> All processing happens locally in your browser, no data leaves your computer. To use this app, simpply upload your HTML timetable files (download from the timetabling website) to analyse staff teaching loads. Multiple files are supported, which may be useful if your school runs multiple courses and you wish to calculate total staff loads. Tip - you likely want to activate the "avoid double-counting" setting.</p>
+        <p><strong>Note:</strong> All processing happens locally in your browser. Upload your HTML timetable files to analyse teaching loads. Multiple files are supported.</p>
     </div>
 
     <div class="controls">
@@ -239,13 +239,17 @@ function renderGrid(loadData, containerId, deepDive=true){
     thead.appendChild(headerRow); table.appendChild(thead);
 
     const tbody=document.createElement('tbody');
+    const grandTotal={}; weeks.forEach(w=>grandTotal[w]=0); let grandTotalAll=0;
+
     rows.forEach(r=>{
         const tr=document.createElement('tr');
         const tdName=document.createElement('td'); tdName.textContent=r; tr.appendChild(tdName);
         let total=0;
         weeks.forEach(w=>{
             const td=document.createElement('td');
-            const val=loadData[r][w]||0; total+=val;
+            const val=loadData[r][w]||0;
+            total+=val;
+            grandTotal[w]+=val;
             td.textContent=val.toFixed(1);
             const intensity=maxHours?Math.min(val/maxHours,1):0;
             td.style.background=`rgba(0,102,204,${intensity})`;
@@ -255,6 +259,7 @@ function renderGrid(loadData, containerId, deepDive=true){
             tr.appendChild(td);
         });
         const tdTotal=document.createElement('td'); tdTotal.textContent=total.toFixed(1);
+        grandTotalAll+=total;
         const intensity=maxHours?Math.min(total/maxHours,1):0;
         tdTotal.style.background=`rgba(0,102,204,${intensity})`;
         tdTotal.style.color=intensity>0.5?'white':'black';
@@ -263,6 +268,26 @@ function renderGrid(loadData, containerId, deepDive=true){
         tr.appendChild(tdTotal);
         tbody.appendChild(tr);
     });
+
+    // Append Grand Total row
+    const trGrand = document.createElement('tr');
+    const tdLabel = document.createElement('td'); tdLabel.textContent='Grand total'; tdLabel.style.fontWeight='bold'; trGrand.appendChild(tdLabel);
+    weeks.forEach(w=>{
+        const td = document.createElement('td');
+        td.textContent=grandTotal[w].toFixed(1);
+        td.style.fontWeight='bold';
+        const intensity = maxHours ? Math.min(grandTotal[w]/maxHours,1) : 0;
+        td.style.background=`rgba(0,102,204,${intensity})`;
+        td.style.color=intensity>0.5?'white':'black';
+        trGrand.appendChild(td);
+    });
+    const tdAll = document.createElement('td'); tdAll.textContent=grandTotalAll.toFixed(1); tdAll.style.fontWeight='bold';
+    const intensity = maxHours ? Math.min(grandTotalAll/maxHours,1) : 0;
+    tdAll.style.background=`rgba(0,102,204,${intensity})`;
+    tdAll.style.color=intensity>0.5?'white':'black';
+    trGrand.appendChild(tdAll);
+    tbody.appendChild(trGrand);
+
     table.appendChild(tbody);
     container.appendChild(table);
 }
@@ -270,7 +295,7 @@ function renderGrid(loadData, containerId, deepDive=true){
 // --- Sorting ---
 function sortGrid(col, table){
     const tbody=table.querySelector('tbody');
-    let rows=Array.from(tbody.querySelectorAll('tr'));
+    let rows=Array.from(tbody.querySelectorAll('tr')).filter(r=>!r.querySelector('td').textContent.includes('Grand total'));
     let asc=true;
     if(currentSort.col===col) asc=!currentSort.asc;
     currentSort={col,asc};
@@ -289,7 +314,7 @@ function sortGrid(col, table){
                       :parseFloat(b.cells[idx].textContent)-parseFloat(a.cells[idx].textContent);
         }
     });
-    rows.forEach(r=>tbody.appendChild(r));
+    rows.forEach(r=>tbody.insertBefore(r,tbody.querySelector('tr:last-child')));
 }
 
 // --- Modal ---
@@ -339,6 +364,7 @@ function exportGridExcel(loadData,title){
     rows.forEach(r=>Object.keys(loadData[r]).forEach(w=>weekSet.add(w)));
     const weeks=Array.from(weekSet).sort((a,b)=>parseInt(a)-parseInt(b));
     ws_data.push([title,...weeks.map(w=>'Week '+w),'Total']);
+    let grandTotal={}; weeks.forEach(w=>grandTotal[w]=0); let grandTotalAll=0;
     rows.forEach(r=>{
         const row=[r];
         let total=0;
@@ -346,10 +372,15 @@ function exportGridExcel(loadData,title){
             const val=loadData[r][w]||0;
             row.push(val.toFixed(1));
             total+=val;
+            grandTotal[w]+=val;
         });
         row.push(total.toFixed(1));
+        grandTotalAll+=total;
         ws_data.push(row);
     });
+    // Add Grand Total row
+    const grandRow=['Grand total',...weeks.map(w=>grandTotal[w].toFixed(1)),grandTotalAll.toFixed(1)];
+    ws_data.push(grandRow);
     const ws=XLSX.utils.aoa_to_sheet(ws_data);
     XLSX.utils.book_append_sheet(wb,ws,'Load');
     XLSX.writeFile(wb,`${title}Load.xlsx`);
