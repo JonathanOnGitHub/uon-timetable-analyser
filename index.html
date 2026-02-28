@@ -889,7 +889,7 @@ const HINTS = {
 let sources   = [];   // {id, name, icon, mappedRows}
 let mapped    = [];   // flattened all sources
 let pending   = {rawRows:[], columns:[], name:'', icon:'📄'};
-let clashInfo = {run:false, pairs:[], effHours:{}};
+let clashInfo = {run:false, active:false, pairs:[], effHours:{}};
 let sortState = {};   // {tableId: {col, dir}}
 let drillIndex= {};   // key -> rows[]
 let heatSort  = {week: null, dir: -1}; // null = sort by name
@@ -1015,7 +1015,7 @@ function doPaste() {
 function clearAll() {
   sources = []; mapped = [];
   pending = {rawRows:[], columns:[], name:'', icon:'📄'};
-  clashInfo = {run:false, pairs:[], effHours:{}};
+  clashInfo = {run:false, active:false, pairs:[], effHours:{}};
   sortState = {};
   document.getElementById('pasteArea').value = '';
   document.getElementById('sourcesWrap').style.display = 'none';
@@ -1171,6 +1171,22 @@ function rebuildMapped() {
   mapped = sources.flatMap(s => s.mappedRows);
 }
 
+// Returns the effective duration of a row.
+// When clash mode is active, clashing rows for a staff member are scaled
+// so that the staff member's total equals their effective (non-overlapping) hours.
+function effDuration(row) {
+  if (!clashInfo.active || !row.staff) return row.duration;
+  const eff = clashInfo.effHours[row.staff];
+  if (eff === undefined) return row.duration;
+  // Calculate raw total for this staff member
+  const rawTotal = mapped
+    .filter(r => r.staff === row.staff)
+    .reduce((s, r) => s + r.duration, 0);
+  if (!rawTotal) return row.duration;
+  // Scale this row proportionally
+  return row.duration * (eff / rawTotal);
+}
+
 // ── SOURCES LIST ──────────────────────────────────────────────────────────────
 function renderSources() {
   const wrap = document.getElementById('sourcesWrap');
@@ -1255,7 +1271,7 @@ function weekToSem(w) {
 
 // ── BUILD RESULTS ─────────────────────────────────────────────────────────────
 function buildResults() {
-  clashInfo = {run:false, pairs:[], effHours:{}};
+  clashInfo = {run:false, active:false, pairs:[], effHours:{}};
   const cb = document.getElementById('clashBtn');
   cb.textContent = '⚡ Detect Clashes';
   cb.className = 'btn btn-danger';
@@ -1271,17 +1287,16 @@ function buildResults() {
 }
 
 function buildKPIs() {
-  const totalHrs = mapped.reduce((s,r)=>s+r.duration,0);
+  const totalHrs = mapped.reduce((s,r)=>s+effDuration(r),0);
   const staff   = new Set(mapped.map(r=>r.staff).filter(Boolean));
   const mods    = new Set(mapped.map(r=>r.module).filter(Boolean));
   const weeks   = new Set(mapped.map(r=>r.week).filter(Boolean));
   const sems    = new Set(mapped.map(r=>r.semester).filter(Boolean));
   const clashN  = clashInfo.run ? mapped.filter(r=>r._clash).length : null;
-  const effHrs  = clashInfo.run ? Object.values(clashInfo.effHours).reduce((s,h)=>s+h,0) : null;
 
   const kpis = [
     [mapped.length,'Sessions',''],
-    [totalHrs.toFixed(1),'Total Hours',''],
+    [totalHrs.toFixed(1), clashInfo.active ? 'Effective Hours' : 'Total Hours',''],
     [staff.size,'Staff',''],
     [mods.size,'Modules',''],
     [weeks.size,'Weeks',''],
@@ -1289,7 +1304,6 @@ function buildKPIs() {
   ];
   if (clashInfo.run) {
     kpis.push([clashN,'Clashing Sessions','clash']);
-    kpis.push([effHrs.toFixed(1),'Effective Hours','']);
   }
   document.getElementById('kpiRow').innerHTML = kpis.map(([v,l,cls])=>
     `<div class="kpi ${cls}"><div class="kpi-val">${v}</div><div class="kpi-lbl">${l}</div></div>`
@@ -1398,7 +1412,7 @@ function renderStaff() {
     if (filt && !r.staff.toLowerCase().includes(filt)) return;
     if (sem && r.semester !== sem) return;
     if (!agg[r.staff]) agg[r.staff] = {hours:0, sessions:0, clashes:0, mods:new Set(), sems:new Set()};
-    agg[r.staff].hours += r.duration;
+    agg[r.staff].hours += effDuration(r);
     agg[r.staff].sessions++;
     if (r._clash) agg[r.staff].clashes++;
     if (r.module) agg[r.staff].mods.add(r.module);
@@ -1430,8 +1444,9 @@ function renderStaff() {
   const maxH = Math.max(...rows.map(r=>r.hours), 1);
   const showClash = clashInfo.run;
 
-  const cols = [['name','Staff'],['hours', showClash?'Raw Hours':'Hours']];
-  if (showClash) cols.push(['effHours','Effective Hours'],['clashes','Clashes']);
+  const cols = [['name','Staff'],['hours', clashInfo.active?'Effective Hours':'Hours']];
+  if (showClash && !clashInfo.active) cols.push(['effHours','Effective Hours'],['clashes','Clashes']);
+  if (showClash) cols.push(['clashes','Clashes']);
   cols.push(['sessions','Sessions'],['mods','Modules'],['sems','Semesters']);
 
   renderTable('staffTbl', rows, cols, (row,k) => {
@@ -1457,7 +1472,7 @@ function renderModule() {
     if (!r.module) return;
     if (filt && !r.module.toLowerCase().includes(filt)) return;
     if (!agg[r.module]) agg[r.module] = {hours:0, sessions:0, staff:new Set(), weeks:new Set()};
-    agg[r.module].hours += r.duration;
+    agg[r.module].hours += effDuration(r);
     agg[r.module].sessions++;
     if (r.staff) agg[r.module].staff.add(r.staff);
     if (r.week)  agg[r.module].weeks.add(r.week);
@@ -1486,7 +1501,7 @@ function renderWeek() {
     if (!r.week) return;
     if (staffF && r.staff !== staffF) return;
     if (!agg[r.week]) agg[r.week] = {hours:0, sessions:0, staff:new Set(), mods:new Set()};
-    agg[r.week].hours += r.duration;
+    agg[r.week].hours += effDuration(r);
     agg[r.week].sessions++;
     if (r.staff) agg[r.week].staff.add(r.staff);
     if (r.module) agg[r.week].mods.add(r.module);
@@ -1513,7 +1528,7 @@ function renderSemester() {
   mapped.forEach(r => {
     const s = r.semester||'Unknown';
     if (!agg[s]) agg[s] = {hours:0, sessions:0, staff:new Set(), mods:new Set()};
-    agg[s].hours += r.duration; agg[s].sessions++;
+    agg[s].hours += effDuration(r); agg[s].sessions++;
     if (r.staff)   agg[s].staff.add(r.staff);
     if (r.module)  agg[s].mods.add(r.module);
   });
@@ -1551,7 +1566,7 @@ function renderHeatmap() {
     if (!r.staff||!r.week) return;
     const k = r.staff+'|'+r.week;
     if (!grid[k]) grid[k]={hours:0,sessions:0};
-    grid[k].hours += r.duration; grid[k].sessions++;
+    grid[k].hours += effDuration(r); grid[k].sessions++;
   });
 
   // Total hours per staff member
@@ -1586,7 +1601,7 @@ function renderHeatmap() {
   const colHdr =
     '<div class="heatmap-row">' +
     '<div class="heatmap-label" style="font-family:\'DM Mono\',monospace;font-size:.6rem;color:var(--muted);cursor:pointer;" ' +
-      'onclick="heatSort={week:null,dir:-1};renderHeatmap();" title="Reset sort — click to sort A–Z">Staff ↺</div>' +
+      'onclick="window.heatSortReset()" title="Reset sort — click to sort A–Z">Staff ↺</div>' +
     weekList.map(wk => {
       const isActive = heatSort.week === wk;
       const cls = isActive ? ('sort-active ' + (heatSort.dir===-1?'sort-desc':'sort-asc')) : '';
@@ -1672,11 +1687,27 @@ document.getElementById('rawSearch').addEventListener('input', renderRaw);
 
 // ── CLASH DETECTION ───────────────────────────────────────────────────────────
 document.getElementById('clashBtn').addEventListener('click', () => {
+  const btn = document.getElementById('clashBtn');
+
+  // If clashes already run — toggle effective hours mode on/off
+  if (clashInfo.run) {
+    clashInfo.active = !clashInfo.active;
+    btn.className = clashInfo.active ? 'btn btn-danger done' : 'btn btn-danger';
+    btn.textContent = clashInfo.active
+      ? `⚡ ${clashInfo.pairs.length} Clash${clashInfo.pairs.length!==1?'es':''} — Effective Hours ON`
+      : `⚡ ${clashInfo.pairs.length} Clash${clashInfo.pairs.length!==1?'es':''} Found`;
+    document.getElementById('clashSummary').textContent = clashInfo.active
+      ? 'Showing effective hours — double-counted time removed from all views.'
+      : `${clashInfo.pairs.length} overlap${clashInfo.pairs.length!==1?'s':''} across ${new Set(clashInfo.pairs.map(p=>p.staff)).size} staff member(s). Click again to apply effective hours.`;
+    buildKPIs();
+    renderAllTables();
+    return;
+  }
+
   if (!mapped.some(r => r.startTime||r.endTime)) {
     alert('Clash detection needs Start Time and/or End Time columns mapped.');
     return;
   }
-  const btn = document.getElementById('clashBtn');
   btn.textContent = '⏳ Working…';
   btn.className = 'btn btn-working';
   btn.disabled = true;
@@ -1724,22 +1755,22 @@ document.getElementById('clashBtn').addEventListener('click', () => {
       }
     });
 
-    clashInfo = {run:true, pairs, effHours};
+    clashInfo = {run:true, active:true, pairs, effHours};
 
     btn.disabled = false;
     btn.className = pairs.length ? 'btn btn-danger done' : 'btn btn-primary';
-    btn.textContent = `⚡ ${pairs.length} Clash${pairs.length!==1?'es':''} Found`;
+    btn.textContent = pairs.length
+      ? `⚡ ${pairs.length} Clash${pairs.length!==1?'es':''} — Effective Hours ON`
+      : '⚡ No Clashes Found';
 
     const clashTab = document.getElementById('clashesTabBtn');
     clashTab.style.display = '';
     document.getElementById('clashSummary').textContent = pairs.length===0
       ? 'No simultaneous sessions detected.'
-      : `${pairs.length} overlap${pairs.length!==1?'s':''} across ${new Set(pairs.map(p=>p.staff)).size} staff member(s).`;
+      : `${pairs.length} overlap${pairs.length!==1?'s':''} across ${new Set(pairs.map(p=>p.staff)).size} staff member(s). Effective hours now shown across all views. Click button to toggle off.`;
 
     buildKPIs();
-    renderStaff();
-    renderRaw();
-    renderClashes();
+    renderAllTables();
     if (pairs.length) switchTab('clashes');
   }, 50);
 });
@@ -1760,18 +1791,31 @@ function openDrawer(label, title, sessions) {
     `<div class="dd-stat"><div class="dd-stat-val">${v}</div><div class="dd-stat-lbl">${l}</div></div>`
   ).join('');
 
-  // Helper: get day-of-week from a row (from date field, or fall back to a 'day' hint in existing fields)
+  // Helper: get day-of-week from a row
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   function getDayOfWeek(r) {
+    // 1. Try parsing a proper date string
     if (r.date) {
       const d = new Date(r.date);
       if (!isNaN(d)) return DAYS[d.getDay()];
     }
-    // Some timetables store day name directly in date or a separate field
+    // 2. Scan ALL field values for a day name anywhere in the string
+    //    (handles "Monday 14 Oct", "14/10 Monday", "MON", etc.)
+    const DAY_ALIASES = {
+      monday:'Monday', mon:'Monday',
+      tuesday:'Tuesday', tue:'Tuesday', tues:'Tuesday',
+      wednesday:'Wednesday', wed:'Wednesday',
+      thursday:'Thursday', thu:'Thursday', thur:'Thursday', thurs:'Thursday',
+      friday:'Friday', fri:'Friday',
+      saturday:'Saturday', sat:'Saturday',
+      sunday:'Sunday', sun:'Sunday',
+    };
     for (const val of Object.values(r)) {
-      const s = String(val||'').trim();
-      const found = DAYS.find(day => s.toLowerCase().startsWith(day.toLowerCase()));
-      if (found) return found;
+      const s = String(val||'').toLowerCase().trim();
+      for (const [alias, full] of Object.entries(DAY_ALIASES)) {
+        // Match as whole word (with word boundaries)
+        if (new RegExp('\\b' + alias + '\\b').test(s)) return full;
+      }
     }
     return null;
   }
@@ -1924,6 +1968,17 @@ function setStatus(type, msg) {
   if (dot) dot.style.background = type==='ok'?'var(--green)':type==='err'?'var(--red)':'var(--border)';
   document.getElementById('statusText').textContent = msg;
 }
+
+  // ── EXPOSE GLOBALS for inline onclick attributes in dynamic HTML ──────────────
+  window.openDrawer     = openDrawer;
+  window.closeDrawer    = closeDrawer;
+  window.switchTab      = switchTab;
+  window.heatSortByWeek = heatSortByWeek;
+  window.renderHeatmap  = renderHeatmap;
+  window.removeSource   = removeSource;
+  // heatSort object is already on window via direct reference in onclick strings
+  // but we expose a setter so the reset onclick can mutate it properly
+  window.heatSortReset  = () => { heatSort.week=null; heatSort.dir=-1; renderHeatmap(); };
 
 }); // end DOMContentLoaded
 </script>
