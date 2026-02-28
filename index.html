@@ -143,11 +143,14 @@ main { max-width: 1360px; margin: 0 auto; padding: 32px 40px 60px; }
 }
 .method-divider { width: 1px; background: rgba(255,255,255,.15); margin: 10px 0; }
 
-.method-pane { display: block; padding: 24px; visibility: hidden; height: 0; overflow: hidden; }
-.method-pane.active { visibility: visible; height: auto; overflow: visible; }
+.method-pane { display: none; padding: 24px; }
+.method-pane.active { display: block; }
 
 /* ── DROPZONE ── */
 .dropzone {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   border: 2px dashed var(--border);
   border-radius: 8px;
   padding: 36px 20px;
@@ -489,8 +492,10 @@ tbody tr.clash-row td:first-child { border-left: 3px solid var(--red); }
 .heatmap-row { display: flex; gap: 3px; align-items: center; }
 .heatmap-label { font-family: 'DM Mono', monospace; font-size: .66rem; color: var(--text); width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .heatmap-col-header { font-family: 'DM Mono', monospace; font-size: .6rem; color: var(--navy); width: 34px; text-align: center; }
-.heatmap-cell { width: 34px; height: 26px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: .58rem; font-weight: 500; cursor: default; transition: transform .12s; position: relative; }
-.heatmap-cell:hover { transform: scale(1.25); z-index: 5; }
+.heatmap-cell { width: 34px; height: 26px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: .58rem; font-weight: 500; cursor: default; transition: transform .12s, box-shadow .12s; position: relative; }
+.heatmap-cell[onclick] { cursor: pointer; }
+.heatmap-cell[onclick]:hover { transform: scale(1.3); box-shadow: 0 2px 8px rgba(16,38,59,.25); z-index: 5; }
+
 
 /* ── EMPTY STATE ── */
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
@@ -1381,7 +1386,14 @@ function renderStaff() {
     if (r.module) { if(!drillIndex['mod:'+r.module]) drillIndex['mod:'+r.module]=[]; drillIndex['mod:'+r.module].push(r); }
     const wk = 'wk:'+r.week; if (r.week) { if(!drillIndex[wk]) drillIndex[wk]=[]; drillIndex[wk].push(r); }
     const sm = 'sem:'+r.semester; if (r.semester) { if(!drillIndex[sm]) drillIndex[sm]=[]; drillIndex[sm].push(r); }
+    // Heatmap drill: staff|wk<week> -> rows for that staff member that week
+    if (r.staff && r.week) {
+      const hwk = r.staff+'|wk'+r.week;
+      if (!drillIndex[hwk]) drillIndex[hwk]=[];
+      drillIndex[hwk].push(r);
+    }
   });
+  window._drillIndex = drillIndex;
 
   const rows = Object.entries(agg).map(([name,d]) => ({
     name, hours:d.hours, sessions:d.sessions, clashes:d.clashes,
@@ -1537,7 +1549,8 @@ function renderHeatmap() {
       const bg = heatColour(v, maxV);
       const textCol = v/maxV > 0.5 ? 'rgba(255,255,255,.9)' : 'rgba(16,38,59,.8)';
       const lbl = v > 0 ? (metric==='hours'?v.toFixed(1):v) : '';
-      return `<div class="heatmap-cell" style="background:${bg};color:${textCol}" title="${staff} · Wk${wk}: ${v>0?(metric==='hours'?v.toFixed(1)+' hrs':v+' sessions'):'none'}">${lbl}</div>`;
+      const clickable = v > 0 ? `onclick="openDrawer('Staff Member','${staff.replace(/'/g,"\\'")}',(window._drillIndex||{})['${staff.replace(/'/g,"\\'")}'+'|wk'+'${wk}']||[])" style="cursor:pointer;"` : '';
+      return `<div class="heatmap-cell" ${clickable} style="background:${bg};color:${textCol}" title="${staff} · Wk${wk}: ${v>0?(metric==='hours'?v.toFixed(1)+' hrs':v+' sessions'):'none – click to drill down'}">${lbl}</div>`;
     }).join('') + '</div>'
   ).join('');
 
@@ -1672,7 +1685,23 @@ function openDrawer(label, title, sessions) {
     `<div class="dd-stat"><div class="dd-stat-val">${v}</div><div class="dd-stat-lbl">${l}</div></div>`
   ).join('');
 
-  // Group by week
+  // Helper: get day-of-week from a row (from date field, or fall back to a 'day' hint in existing fields)
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  function getDayOfWeek(r) {
+    if (r.date) {
+      const d = new Date(r.date);
+      if (!isNaN(d)) return DAYS[d.getDay()];
+    }
+    // Some timetables store day name directly in date or a separate field
+    for (const val of Object.values(r)) {
+      const s = String(val||'').trim();
+      const found = DAYS.find(day => s.toLowerCase().startsWith(day.toLowerCase()));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  // Group by week, then sub-group by day
   const grouped = {};
   sessions.forEach(r => {
     const g = r.week ? `Week ${r.week}` : (r.date || r.semester || 'Unscheduled');
@@ -1684,21 +1713,65 @@ function openDrawer(label, title, sessions) {
     return (!isNaN(na)&&!isNaN(nb)) ? na-nb : a.localeCompare(b);
   });
 
+  // Day sort order
+  const DAY_ORDER = {Monday:0,Tuesday:1,Wednesday:2,Thursday:3,Friday:4,Saturday:5,Sunday:6};
+
   let html = '';
   grpKeys.forEach(grp => {
-    const sess = grouped[grp].slice().sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
-    html += `<div class="dd-group-hdr">${grp} — ${sess.length} session${sess.length!==1?'s':''}</div>`;
-    sess.forEach(r => {
-      const time = r.startTime ? `${r.startTime}${r.endTime?'–'+r.endTime:''}` : '—';
-      const meta = [r.type, r.room].filter(Boolean).join(' · ');
-      const who  = label==='Staff Member' ? (r.module||'—') : (r.staff||'—');
-      const secondary = label==='Staff Member' ? '' : `<div class="dd-meta">${r.staff||''}</div>`;
-      html += `<div class="dd-row${r._clash?' clash':''}">
-        <div class="dd-time">${time}</div>
-        <div><div class="dd-mod">${who}</div>${secondary}${meta?`<div class="dd-meta">${meta}</div>`:''}</div>
-        <div><div class="dd-hrs">${(r.duration||1).toFixed(1)}h</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
-      </div>`;
+    const allSess = grouped[grp];
+    const totalHrs = allSess.reduce((s,r)=>s+(r.duration||1),0);
+    html += `<div class="dd-group-hdr">${grp} <span style="opacity:.6;font-weight:400">— ${allSess.length} session${allSess.length!==1?'s':''} · ${totalHrs.toFixed(1)}h</span></div>`;
+
+    // Sub-group by day of week if available
+    const byDay = {};
+    let hasDays = false;
+    allSess.forEach(r => {
+      const day = getDayOfWeek(r);
+      if (day) hasDays = true;
+      const key = day || '__none__';
+      if (!byDay[key]) byDay[key] = [];
+      byDay[key].push(r);
     });
+
+    if (hasDays) {
+      // Sort day groups in Mon–Sun order
+      const dayKeys = Object.keys(byDay).sort((a,b) => {
+        const oa = DAY_ORDER[a]??99, ob = DAY_ORDER[b]??99;
+        return oa - ob;
+      });
+      dayKeys.forEach(day => {
+        const daySess = byDay[day].slice().sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
+        if (day !== '__none__') {
+          html += `<div style="padding:7px 20px 4px;font-family:'DM Mono',monospace;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:var(--navy);background:rgba(16,38,59,.04);border-bottom:1px solid var(--border);">📅 ${day}</div>`;
+        }
+        daySess.forEach(r => {
+          const time = r.startTime ? `${r.startTime}${r.endTime?'–'+r.endTime:''}` : '—';
+          const meta = [r.type, r.room].filter(Boolean).join(' · ');
+          const who  = label==='Staff Member' ? (r.module||'—') : (r.staff||'—');
+          const secondary = label==='Staff Member' ? '' : `<div class="dd-meta">${r.staff||''}</div>`;
+          html += `<div class="dd-row${r._clash?' clash':''}">
+            <div class="dd-time">${time}</div>
+            <div><div class="dd-mod">${who}</div>${secondary}${meta?`<div class="dd-meta">${meta}</div>`:''}</div>
+            <div><div class="dd-hrs">${(r.duration||1).toFixed(1)}h</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
+          </div>`;
+        });
+      });
+    } else {
+      // No day info — fall back to time-sorted flat list
+      const sess = allSess.slice().sort((a,b)=>(a.startTime||'').localeCompare(b.startTime||''));
+      sess.forEach(r => {
+        const time = r.startTime ? `${r.startTime}${r.endTime?'–'+r.endTime:''}` : '—';
+        const meta = [r.type, r.room].filter(Boolean).join(' · ');
+        const who  = label==='Staff Member' ? (r.module||'—') : (r.staff||'—');
+        const secondary = label==='Staff Member' ? '' : `<div class="dd-meta">${r.staff||''}</div>`;
+        const flatDay = getDayOfWeek(r);
+        html += `<div class="dd-row${r._clash?' clash':''}">
+          <div class="dd-time">${time}${flatDay?`<div class="dd-meta" style="margin-top:3px;color:var(--navy);opacity:.7">${flatDay.slice(0,3)}</div>`:''}</div>
+          <div><div class="dd-mod">${who}</div>${secondary}${meta?`<div class="dd-meta">${meta}</div>`:''}</div>
+          <div><div class="dd-hrs">${(r.duration||1).toFixed(1)}h</div>${r._clash?'<div class="dd-clash-flag">⚠ clash</div>':''}</div>
+        </div>`;
+      });
+    }
   });
 
   document.getElementById('ddBody').innerHTML = html;
