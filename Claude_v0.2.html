@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teaching Load Analyser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --navy: #041e42;
+    --mid-blue: #0066cc;
+    --light-blue: #e8f0fb;
+    --accent: #00a9e0;
+    --gold: #c89b2a;
+    --success: #1a7a4a;
+    --warn: #b85c00;
+    --danger: #c0392b;
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --border: #d0d7e3;
+    --text: #1a1f2e;
+    --muted: #6b7494;
+    --cell-0: #f0f4ff;
+    --cell-1: #c8ddf7;
+    --cell-2: #7fb3ef;
+    --cell-3: #3a85d9;
+    --cell-4: #1a5fa8;
+    --cell-5: #0a3d6b;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(4,30,66,0.4);
+  }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--mid-blue);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Source Serif 4', serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: white;
+    letter-spacing: -1px;
+  }
+  .header-title {
+    font-family: 'Source Serif 4', serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    letter-spacing: 0.01em;
+  }
+  .header-sub {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    font-weight: 300;
+    margin-top: 1px;
+  }
+  .header-badge {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.8);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .header-badge::before { content: '🔒'; }
+
+  /* MAIN LAYOUT */
+  main { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+
+  /* LANDING */
+  #landing {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+  }
+  .landing-hero {
+    background: var(--navy);
+    color: white;
+    border-radius: 12px;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .landing-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(0,102,204,0.3);
+  }
+  .landing-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; right: 60px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(0,169,224,0.2);
+  }
+  .hero-eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    font-weight: 500;
+  }
+  .hero-h1 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 1.2rem;
+    position: relative;
+  }
+  .hero-desc {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .privacy-box {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.8);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .privacy-box span { font-size: 1.2rem; }
+
+  .landing-panel {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 2rem;
+  }
+  .panel-h2 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 1.3rem;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+  }
+  .panel-sub { color: var(--muted); font-size: 0.82rem; margin-bottom: 1.5rem; }
+
+  /* FILE UPLOAD */
+  .drop-zone {
+    border: 2px dashed var(--mid-blue);
+    border-radius: 10px;
+    padding: 2.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--light-blue);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    background: #d4e8fb;
+    border-color: var(--navy);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+  }
+  .drop-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+  .drop-text { font-size: 0.9rem; color: var(--navy); font-weight: 500; }
+  .drop-hint { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+
+  .file-list { margin-top: 1rem; display: flex; flex-direction: column; gap: 6px; }
+  .file-item {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--light-blue);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+  .file-item .fi-name { flex: 1; color: var(--navy); font-weight: 500; }
+  .file-item .fi-remove {
+    cursor: pointer; color: var(--danger);
+    background: none; border: none; font-size: 1rem; line-height: 1;
+  }
+
+  /* FORM CONTROLS */
+  .ctrl-group { margin-top: 1.2rem; }
+  .ctrl-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 5px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .ctrl-input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--text);
+    transition: border 0.15s;
+    background: var(--surface);
+  }
+  .ctrl-input:focus { outline: none; border-color: var(--mid-blue); }
+
+  .ctrl-row { display: flex; gap: 1rem; }
+  .ctrl-row > * { flex: 1; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 1rem;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .toggle-label { font-size: 0.85rem; flex: 1; }
+  .toggle-label small { display: block; color: var(--muted); font-size: 0.75rem; }
+  .toggle {
+    width: 42px; height: 24px;
+    background: #ccc;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    border: none;
+    appearance: none;
+  }
+  .toggle:checked { background: var(--mid-blue); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: white;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .toggle:checked::after { left: 20px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: none; border-radius: 8px;
+    padding: 11px 22px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--mid-blue);
+    color: white;
+  }
+  .btn-primary:hover { background: #0055aa; }
+  .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-outline {
+    background: transparent;
+    color: var(--navy);
+    border: 1.5px solid var(--border);
+  }
+  .btn-outline:hover { border-color: var(--mid-blue); color: var(--mid-blue); }
+  .btn-sm { padding: 7px 14px; font-size: 0.8rem; }
+
+  .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; flex-wrap: wrap; }
+
+  /* ANALYSER SECTION */
+  #analyser { display: none; }
+
+  .analyser-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .analyser-title {
+    font-family: 'Source Serif 4', serif;
+    font-size: 1.6rem;
+    color: var(--navy);
+  }
+  .analyser-meta { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
+
+  /* TABS */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 1.5rem;
+  }
+  .tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    border-radius: 6px 6px 0 0;
+  }
+  .tab-btn:hover { color: var(--navy); background: var(--light-blue); }
+  .tab-btn.active {
+    color: var(--mid-blue);
+    border-bottom-color: var(--mid-blue);
+    background: var(--light-blue);
+  }
+
+  /* CONTROLS BAR */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+  }
+  .controls-bar label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  .controls-bar input[type=number] {
+    width: 70px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: 0.82rem;
+  }
+  .sep { width: 1px; height: 24px; background: var(--border); }
+  .controls-bar .spacer { flex: 1; }
+  .sort-info { font-size: 0.75rem; color: var(--muted); }
+
+  /* GRID TABLE */
+  .grid-wrap {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .grid-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.78rem;
+  }
+  .grid-table th, .grid-table td {
+    border: 1px solid var(--border);
+    padding: 0;
+    white-space: nowrap;
+  }
+  .grid-table thead tr:first-child th {
+    background: var(--navy);
+    color: white;
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-align: center;
+    padding: 10px 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .grid-table thead .week-header {
+    min-width: 46px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .grid-table thead .week-header:hover { background: #0a3060; }
+  .grid-table thead th:first-child {
+    text-align: left;
+    min-width: 180px;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    left: 0;
+    z-index: 20;
+  }
+  .grid-table thead th:first-child:hover { background: #0a3060; }
+  .sort-arrow { margin-left: 4px; opacity: 0.6; }
+
+  .grid-table tbody tr:hover td { background: rgba(0,102,204,0.04); }
+  .grid-table tbody tr:hover td:first-child { background: #e8effa; }
+
+  .name-cell {
+    padding: 8px 12px;
+    font-weight: 500;
+    color: var(--navy);
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 5;
+    border-right: 2px solid var(--border);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .totals-row td { font-weight: 600; }
+  .totals-row .name-cell {
+    background: var(--navy);
+    color: white;
+    font-family: 'Source Serif 4', serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+  }
+
+  .data-cell {
+    text-align: center;
+    padding: 6px 4px;
+    cursor: pointer;
+    transition: filter 0.1s;
+    min-width: 46px;
+  }
+  .data-cell:hover { filter: brightness(0.85); }
+  .data-cell.empty { background: #f8f9fc; cursor: default; color: #ccc; font-size: 0.7rem; }
+  .data-cell span { display: block; font-weight: 600; font-size: 0.82rem; }
+  .data-cell small { display: block; font-size: 0.62rem; opacity: 0.7; }
+  .data-cell small.cost { opacity: 1; color: var(--gold); font-weight: 600; }
+
+  /* Colour scale */
+  .heat-0 { background: var(--cell-0); color: #555; }
+  .heat-1 { background: var(--cell-1); color: #234; }
+  .heat-2 { background: var(--cell-2); color: #fff; }
+  .heat-3 { background: var(--cell-3); color: #fff; }
+  .heat-4 { background: var(--cell-4); color: #fff; }
+  .heat-5 { background: var(--cell-5); color: #fff; }
+
+  /* TOTALS ROW */
+  .totals-row .data-cell { background: #e8effa; color: var(--navy); border-top: 2px solid var(--mid-blue); }
+  .totals-row .data-cell:hover { background: #d0dffa; }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px; border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(4,30,66,0.55);
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 2rem;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    max-width: 700px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(4,30,66,0.3);
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header {
+    padding: 1.4rem 1.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .modal-title {
+    font-family: 'Source Serif 4', serif;
+    font-size: 1.15rem;
+    color: var(--navy);
+  }
+  .modal-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .modal-close {
+    background: none; border: none;
+    font-size: 1.4rem; cursor: pointer; color: var(--muted);
+    line-height: 1; padding: 4px;
+  }
+  .modal-body { padding: 1.2rem 1.6rem; overflow-y: auto; flex: 1; }
+  .modal-stat-row {
+    display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;
+  }
+  .modal-stat {
+    background: var(--light-blue);
+    border-radius: 8px;
+    padding: 10px 16px;
+    flex: 1; min-width: 100px;
+  }
+  .modal-stat .ms-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--mid-blue);
+  }
+  .modal-stat .ms-label { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+  .session-list { display: flex; flex-direction: column; gap: 8px; }
+  .session-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+  }
+  .session-card .sc-title {
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 4px;
+  }
+  .session-card .sc-meta {
+    color: var(--muted);
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .session-card .sc-hours {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--mid-blue);
+    font-weight: 600;
+    float: right;
+    font-size: 0.9rem;
+  }
+  .session-card .sc-tag {
+    display: inline-block;
+    background: var(--light-blue);
+    color: var(--mid-blue);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    margin-right: 4px;
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    flex: 1; min-width: 140px;
+  }
+  .stat-card .sc-v {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 500;
+    color: var(--mid-blue);
+  }
+  .stat-card .sc-l { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  /* ALERTS */
+  .alert {
+    background: #fff3cd; border: 1px solid #ffe08a;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 0.82rem; color: #7a5200;
+    margin-bottom: 1rem;
+  }
+
+  /* RESPONSIVE */
+  @media(max-width:900px) {
+    #landing { grid-template-columns: 1fr; }
+  }
+
+  .spinner { display: none; }
+  .loading .spinner { display: inline-block; }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .empty-state .es-icon { font-size: 3rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">
+    <div class="logo-mark">TL</div>
+    <div>
+      <div class="header-title">Teaching Load Analyser</div>
+      <div class="header-sub">University Timetable Analytics</div>
+    </div>
+  </div>
+  <div class="header-badge">All data processed locally — nothing leaves your browser</div>
+</header>
+
+<main>
+
+<!-- LANDING -->
+<div id="landing">
+  <div class="landing-hero">
+    <div class="hero-eyebrow">Teaching Analytics Tool</div>
+    <h1 class="hero-h1">Analyse staff teaching loads from timetable files</h1>
+    <p class="hero-desc">
+      Upload exported HTML timetable files from your university timetabling system. The tool parses session data, calculates weekly contact hours, and generates interactive heatmap grids for staff and modules.
+    </p>
+    <div class="privacy-box">
+      <span>🔒</span>
+      <div>
+        <strong>100% browser-based processing.</strong> Your timetable data never leaves your device. No server, no uploads, no tracking. Close the tab to clear everything.
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-panel">
+    <h2 class="panel-h2">Upload &amp; Configure</h2>
+    <p class="panel-sub">Select one or more HTML timetable files exported from your timetabling system.</p>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".html,.htm" multiple>
+      <div class="drop-icon">📂</div>
+      <div class="drop-text">Drop HTML timetable files here</div>
+      <div class="drop-hint">or click to browse — multiple files supported</div>
+    </div>
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="titleInput">Analysis Title <span style="font-weight:300;text-transform:none">(optional)</span></label>
+      <input class="ctrl-input" type="text" id="titleInput" placeholder="e.g. School of Computer Science — 2024/25">
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-group">
+        <label class="ctrl-label" for="weekFrom">Week range — from</label>
+        <input class="ctrl-input" type="number" id="weekFrom" placeholder="1" min="1" max="52">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label" for="weekTo">To</label>
+        <input class="ctrl-input" type="number" id="weekTo" placeholder="52" min="1" max="52">
+      </div>
+    </div>
+
+    <div class="ctrl-row">
+      <div class="ctrl-group">
+        <label class="ctrl-label" for="hourlyRate">Est. hourly rate (£) <span style="font-weight:300;text-transform:none">(optional)</span></label>
+        <input class="ctrl-input" type="number" id="hourlyRate" placeholder="e.g. 50" min="0" step="1" value="50">
+      </div>
+      <div class="ctrl-group" style="display:flex;align-items:flex-end">
+        <p style="font-size:0.73rem;color:var(--muted);padding-bottom:9px;">Used to estimate teaching delivery costs. A rough blended rate works well — exact grade not required.</p>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-label">
+        Realistic hours (deduplicate overlaps)
+        <small>Counts each hour only once per staff per day, avoiding double-counting parallel sessions.</small>
+      </div>
+      <input type="checkbox" class="toggle" id="realisticToggle">
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-primary" id="analyseBtn" disabled>
+        📊 Analyse Timetable
+      </button>
+    </div>
+
+    <p style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">
+      <strong>Expected table headers:</strong> Activity, Module Code, Module Title, Session Title, Type, Weeks, Day, Start, End, Staff, Location, Group Information, Notes.
+    </p>
+  </div>
+</div>
+
+<!-- ANALYSER -->
+<div id="analyser">
+  <div class="analyser-header">
+    <div>
+      <div class="analyser-title" id="analyserTitle">Teaching Load Analysis</div>
+      <div class="analyser-meta" id="analyserMeta"></div>
+    </div>
+    <div class="btn-group" style="margin-top:0">
+      <button class="btn btn-outline btn-sm" id="btnBack">← New Analysis</button>
+      <button class="btn btn-outline btn-sm" id="btnExportXlsx">⬇ Export XLSX</button>
+      <button class="btn btn-outline btn-sm" id="btnExportPng">🖼 Export PNG</button>
+    </div>
+  </div>
+
+  <div class="stats-bar" id="statsBar"></div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="staff">👤 Staff View</button>
+    <button class="tab-btn" data-tab="modules">📚 Module View</button>
+  </div>
+
+  <div id="tab-staff">
+    <div class="controls-bar">
+      <label>Sort by:</label>
+      <button class="btn btn-outline btn-sm" id="sortStaffName">Name</button>
+      <button class="btn btn-outline btn-sm" id="sortStaffTotal">Total Hours</button>
+      <div class="sep"></div>
+      <label>Toggle realistic hours:</label>
+      <input type="checkbox" class="toggle" id="realisticToggle2">
+      <div class="sep"></div>
+      <label>Show costs:</label>
+      <input type="checkbox" class="toggle" id="showCostsToggle">
+      <div class="spacer"></div>
+      <span class="sort-info" id="staffSortInfo"></span>
+    </div>
+    <div class="grid-wrap" id="staffGridWrap">
+      <div class="empty-state"><div class="es-icon">📋</div>Loading…</div>
+    </div>
+    <div class="legend" id="staffLegend"></div>
+    <p style="margin-top:8px;font-size:0.73rem;color:var(--muted);">
+      All figures are <strong>staff-hours</strong>: a session shared between two staff members counts as 2 hours in totals.
+      The Grand Total is the sum of all individual staff rows.
+    </p>
+  </div>
+
+  <div id="tab-modules" style="display:none">
+    <div class="controls-bar">
+      <label>Sort by:</label>
+      <button class="btn btn-outline btn-sm" id="sortModName">Name</button>
+      <button class="btn btn-outline btn-sm" id="sortModTotal">Total Hours</button>
+      <div class="sep"></div>
+      <label>Show costs:</label>
+      <input type="checkbox" class="toggle" id="showCostsToggleMod">
+      <div class="spacer"></div>
+      <span class="sort-info" id="modSortInfo"></span>
+    </div>
+    <div class="grid-wrap" id="modGridWrap">
+      <div class="empty-state"><div class="es-icon">📋</div>Loading…</div>
+    </div>
+    <div class="legend" id="modLegend"></div>
+    <p style="margin-top:8px;font-size:0.73rem;color:var(--muted);">
+      All figures are <strong>staff-hours</strong>: a session shared between two staff members counts as 2 hours.
+      Module row totals and the Grand Total therefore match those in the Staff view.
+    </p>
+  </div>
+</div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalTitle">Session Details</div>
+        <div class="modal-subtitle" id="modalSubtitle"></div>
+      </div>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// DATA STRUCTURES & GLOBALS
+// =============================================
+let uploadedFiles = [];
+let parsedSessions = []; // array of session objects
+let weekRange = [1, 52];
+let realisticMode = false;
+let currentTab = 'staff';
+
+// Aggregated data
+let staffData = {}; // { name: { week: [sessions] } }
+let moduleData = {}; // { code: { week: [sessions] } }
+let allWeeks = [];
+let allStaff = [];
+let allModules = [];
+
+let staffSort = { col: 'total', dir: -1 };
+let modSort = { col: 'total', dir: -1 };
+let hourlyRate = 50;
+let showCosts = false;
+
+// =============================================
+// FILE HANDLING
+// =============================================
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+const fileList = document.getElementById('fileList');
+const analyseBtn = document.getElementById('analyseBtn');
+
+function updateFileList() {
+  fileList.innerHTML = '';
+  uploadedFiles.forEach((f, i) => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.innerHTML = `<span>📄</span><span class="fi-name">${f.name}</span>
+      <button class="fi-remove" data-i="${i}">✕</button>`;
+    fileList.appendChild(item);
+  });
+  analyseBtn.disabled = uploadedFiles.length === 0;
+}
+
+fileInput.addEventListener('change', e => {
+  uploadedFiles.push(...Array.from(e.target.files));
+  updateFileList();
+  fileInput.value = '';
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  uploadedFiles.push(...Array.from(e.dataTransfer.files).filter(f => f.name.match(/\.html?$/i)));
+  updateFileList();
+});
+
+fileList.addEventListener('click', e => {
+  if (e.target.classList.contains('fi-remove')) {
+    const i = +e.target.dataset.i;
+    uploadedFiles.splice(i, 1);
+    updateFileList();
+  }
+});
+
+// =============================================
+// WEEK PARSING
+// =============================================
+function parseWeeks(str) {
+  if (!str) return [];
+  str = String(str).trim();
+  const weeks = new Set();
+  const parts = str.split(',');
+  for (const part of parts) {
+    const trimmed = part.trim();
+    const rangeMatch = trimmed.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+    if (rangeMatch) {
+      const from = +rangeMatch[1], to = +rangeMatch[2];
+      for (let w = from; w <= to; w++) weeks.add(w);
+    } else {
+      const n = +trimmed;
+      if (!isNaN(n) && n > 0) weeks.add(n);
+    }
+  }
+  return [...weeks].sort((a,b) => a-b);
+}
+
+// =============================================
+// TIME HELPERS
+// =============================================
+function timeToHours(t) {
+  if (!t) return 0;
+  const m = String(t).match(/(\d+):(\d+)/);
+  if (m) return +m[1] + +m[2]/60;
+  const h = parseFloat(t);
+  return isNaN(h) ? 0 : h;
+}
+
+function sessionDuration(s) {
+  const start = timeToHours(s.start);
+  const end = timeToHours(s.end);
+  return end > start ? Math.round((end - start) * 100) / 100 : 0;
+}
+
+// =============================================
+// HTML PARSING
+// =============================================
+function parseHTMLFile(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const sessions = [];
+  const tables = doc.querySelectorAll('table');
+
+  for (const table of tables) {
+    const rows = table.querySelectorAll('tr');
+    if (rows.length < 2) continue;
+    
+    // Find header row
+    let headerRow = null;
+    let headerIdx = 0;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      const cells = rows[i].querySelectorAll('th, td');
+      const texts = [...cells].map(c => c.textContent.trim().toLowerCase());
+      if (texts.some(t => t.includes('module') || t.includes('activity') || t.includes('staff'))) {
+        headerRow = cells;
+        headerIdx = i;
+        break;
+      }
+    }
+    if (!headerRow) continue;
+
+    // Map header names to column indices
+    const cols = {};
+    const headerMap = {
+      activity: ['activity'],
+      moduleCode: ['module code', 'module_code', 'modulecode'],
+      moduleTitle: ['module title', 'module_title', 'moduletitle'],
+      sessionTitle: ['session title', 'session_title', 'sessiontitle'],
+      type: ['type'],
+      weeks: ['weeks', 'week'],
+      day: ['day'],
+      start: ['start'],
+      end: ['end'],
+      staff: ['staff'],
+      location: ['location', 'room'],
+      groupInfo: ['group information', 'group info', 'group'],
+      notes: ['notes']
+    };
+
+    [...headerRow].forEach((cell, i) => {
+      const t = cell.textContent.trim().toLowerCase();
+      for (const [key, variants] of Object.entries(headerMap)) {
+        if (variants.some(v => t.includes(v))) {
+          if (cols[key] === undefined) cols[key] = i;
+        }
+      }
+    });
+
+    // Need at least weeks and staff
+    if (cols.weeks === undefined && cols.staff === undefined) continue;
+
+    // Parse data rows
+    for (let i = headerIdx + 1; i < rows.length; i++) {
+      const cells = rows[i].querySelectorAll('td, th');
+      if (cells.length < 2) continue;
+
+      const get = (key) => {
+        if (cols[key] === undefined) return '';
+        const cell = cells[cols[key]];
+        return cell ? cell.innerHTML : '';
+      };
+      const getText = (key) => {
+        if (cols[key] === undefined) return '';
+        const cell = cells[cols[key]];
+        return cell ? cell.textContent.trim() : '';
+      };
+
+      const weeksRaw = getText('weeks');
+      const weeks = parseWeeks(weeksRaw);
+      if (weeks.length === 0) continue;
+
+      // Staff may be separated by <br>
+      const staffHTML = get('staff');
+      const staffNames = staffHTML
+        .split(/<br\s*\/?>/gi)
+        .map(s => s.replace(/<[^>]+>/g,'').trim())
+        .filter(Boolean);
+      if (staffNames.length === 0) continue;
+
+      const session = {
+        activity: getText('activity'),
+        moduleCode: getText('moduleCode'),
+        moduleTitle: getText('moduleTitle'),
+        sessionTitle: getText('sessionTitle'),
+        type: getText('type'),
+        weeks,
+        weeksRaw,
+        day: getText('day'),
+        start: getText('start'),
+        end: getText('end'),
+        staff: staffNames,
+        location: getText('location'),
+        groupInfo: getText('groupInfo'),
+        notes: getText('notes'),
+      };
+      sessions.push(session);
+    }
+  }
+  return sessions;
+}
+
+// =============================================
+// AGGREGATE DATA
+// =============================================
+function aggregateData(sessions, weekFrom, weekTo, realistic) {
+  staffData = {};
+  moduleData = {};
+
+  for (const sess of sessions) {
+    const filteredWeeks = sess.weeks.filter(w => w >= weekFrom && w <= weekTo);
+    if (filteredWeeks.length === 0) continue;
+
+    // Staff aggregation
+    for (const name of sess.staff) {
+      if (!staffData[name]) staffData[name] = {};
+      for (const w of filteredWeeks) {
+        if (!staffData[name][w]) staffData[name][w] = [];
+        staffData[name][w].push(sess);
+      }
+    }
+
+    // Module aggregation — push one copy per staff member so that module totals
+    // reflect total staff-hours, consistent with the staff view.
+    const modKey = sess.moduleCode || sess.moduleTitle || 'Unknown';
+    if (!moduleData[modKey]) moduleData[modKey] = {};
+    for (const w of filteredWeeks) {
+      if (!moduleData[modKey][w]) moduleData[modKey][w] = [];
+      for (let _i = 0; _i < sess.staff.length; _i++) {
+        moduleData[modKey][w].push(sess);
+      }
+    }
+  }
+
+  allStaff = Object.keys(staffData).sort();
+  allModules = Object.keys(moduleData).sort();
+
+  // Collect all weeks
+  const weekSet = new Set();
+  for (const s of sessions) {
+    for (const w of s.weeks) {
+      if (w >= weekFrom && w <= weekTo) weekSet.add(w);
+    }
+  }
+  allWeeks = [...weekSet].sort((a,b) => a-b);
+}
+
+function calcHours(sessions, realistic) {
+  if (!sessions || sessions.length === 0) return 0;
+  if (!realistic) {
+    return sessions.reduce((sum, s) => sum + sessionDuration(s), 0);
+  }
+  // Deduplicate overlapping time slots per day
+  const byDay = {};
+  for (const s of sessions) {
+    const day = s.day || 'unknown';
+    if (!byDay[day]) byDay[day] = [];
+    byDay[day].push({ start: timeToHours(s.start), end: timeToHours(s.end) });
+  }
+  let total = 0;
+  for (const slots of Object.values(byDay)) {
+    // Merge overlapping intervals
+    const sorted = slots.filter(s => s.end > s.start).sort((a,b) => a.start - b.start);
+    let merged = [];
+    for (const s of sorted) {
+      if (merged.length && s.start < merged[merged.length-1].end) {
+        merged[merged.length-1].end = Math.max(merged[merged.length-1].end, s.end);
+      } else {
+        merged.push({...s});
+      }
+    }
+    total += merged.reduce((sum, s) => sum + (s.end - s.start), 0);
+  }
+  return Math.round(total * 100) / 100;
+}
+
+function fmtCost(hours) {
+  const cost = hours * hourlyRate;
+  if (cost >= 1000000) return '£' + (cost/1000000).toFixed(1) + 'm';
+  if (cost >= 1000) return '£' + (cost/1000).toFixed(1) + 'k';
+  return '£' + cost.toFixed(0);
+}
+
+// =============================================
+// SESSION DEDUPLICATION
+// =============================================
+// Unique key for a session: module + day + start + end + type + location
+// A session shared by multiple staff is only counted once in grand totals.
+function sessionKey(s) {
+  return [s.moduleCode, s.moduleTitle, s.sessionTitle, s.day, s.start, s.end, s.type, s.location].join('|');
+}
+
+function deduplicateSessions(sessions) {
+  const seen = new Map();
+  for (const s of sessions) {
+    const k = sessionKey(s);
+    if (!seen.has(k)) seen.set(k, s);
+  }
+  return [...seen.values()];
+}
+
+// =============================================
+// BUILD GRID
+// =============================================
+function buildGrid(dataMap, entities, weeks, sortConfig, realistic, onCellClick, onTotalClick, onHeaderClick, onNameClick) {
+  if (entities.length === 0) return '<div class="empty-state"><div class="es-icon">🔍</div>No data found.</div>';
+
+  // Sort entities
+  const sorted = [...entities];
+  if (sortConfig.col === 'name') {
+    sorted.sort((a,b) => sortConfig.dir * a.localeCompare(b));
+  } else if (sortConfig.col === 'total') {
+    // Sort by row total hours
+    sorted.sort((a,b) => {
+      const totA = weeks.reduce((s,w) => s + calcHours(dataMap[a]?.[w], realistic), 0);
+      const totB = weeks.reduce((s,w) => s + calcHours(dataMap[b]?.[w], realistic), 0);
+      return sortConfig.dir * (totA - totB);
+    });
+  } else {
+    // Sort by a specific week number — sortConfig.col is a number
+    const w = sortConfig.col; // already a number, set via +th.dataset.sortWeek
+    sorted.sort((a,b) => {
+      const hA = calcHours(dataMap[a]?.[w], realistic);
+      const hB = calcHours(dataMap[b]?.[w], realistic);
+      return sortConfig.dir * (hA - hB);
+    });
+  }
+
+  // Find max for colour scale
+  let maxHours = 0;
+  for (const e of entities) {
+    for (const w of weeks) {
+      const h = calcHours(dataMap[e]?.[w], realistic);
+      if (h > maxHours) maxHours = h;
+    }
+  }
+  const colourBreaks = [0, maxHours*0.1, maxHours*0.25, maxHours*0.45, maxHours*0.65, maxHours*0.85];
+
+  function heatClass(h) {
+    if (h <= 0) return '';
+    for (let i = colourBreaks.length - 1; i >= 0; i--) {
+      if (h >= colourBreaks[i]) return `heat-${i}`;
+    }
+    return 'heat-0';
+  }
+
+  let html = '<table class="grid-table"><thead><tr>';
+  const nameArrow = sortConfig.col === 'name' ? (sortConfig.dir > 0 ? ' ↑' : ' ↓') : '';
+  html += `<th style="text-align:left" data-sort="name">Name${nameArrow}</th>`;
+  for (const w of weeks) {
+    const arrow = sortConfig.col === w ? (sortConfig.dir > 0 ? ' ↑' : ' ↓') : '';
+    html += `<th class="week-header" data-sort-week="${w}" title="Click to sort by week ${w}">W${w}${arrow}</th>`;
+  }
+  const totArrow = sortConfig.col === 'total' ? (sortConfig.dir > 0 ? ' ↑' : ' ↓') : '';
+  html += `<th class="week-header" data-sort="total" style="background:#0a3060">Total${totArrow}</th>`;
+  html += '</tr></thead><tbody>';
+
+  for (const entity of sorted) {
+    html += `<tr>`;
+    html += `<td class="name-cell" data-entity="${encodeURIComponent(entity)}" title="${entity}">${entity}</td>`;
+    let rowTotal = 0;
+    for (const w of weeks) {
+      const sessions = dataMap[entity]?.[w] || [];
+      const h = calcHours(sessions, realistic);
+      rowTotal += h;
+      if (h > 0) {
+        html += `<td class="data-cell ${heatClass(h)}" data-entity="${encodeURIComponent(entity)}" data-week="${w}" title="${entity}, Week ${w}: ${h.toFixed(1)}h${hourlyRate > 0 ? ' · ' + fmtCost(h) : ''}">
+          <span>${h.toFixed(1)}</span><small class="${showCosts && hourlyRate > 0 ? 'cost' : ''}">${showCosts && hourlyRate > 0 ? fmtCost(h) : 'hrs'}</small></td>`;
+      } else {
+        html += `<td class="data-cell empty" data-entity="${encodeURIComponent(entity)}" data-week="${w}">–</td>`;
+      }
+    }
+    html += `<td class="data-cell heat-3" data-entity="${encodeURIComponent(entity)}" data-week="total" title="Total: ${rowTotal.toFixed(1)}h${hourlyRate > 0 ? ' · ' + fmtCost(rowTotal) : ''}">
+      <span>${rowTotal.toFixed(1)}</span><small class="${showCosts && hourlyRate > 0 ? 'cost' : ''}">${showCosts && hourlyRate > 0 ? fmtCost(rowTotal) : 'hrs'}</small></td>`;
+    html += '</tr>';
+  }
+
+  // Grand totals row — sums all entity hours (staff-hours), consistent with row totals
+  html += '<tr class="totals-row">';
+  html += `<td class="name-cell" data-week="total" data-entity="all">Grand Total</td>`;
+  let grandTotal = 0;
+  for (const w of weeks) {
+    const wTotal = entities.reduce((s, e) => s + calcHours(dataMap[e]?.[w], realistic), 0);
+    grandTotal += wTotal;
+    html += `<td class="data-cell" data-week="${w}" data-entity="all" title="All, Week ${w}: ${wTotal.toFixed(1)}h${hourlyRate > 0 ? ' · ' + fmtCost(wTotal) : ''}">
+      <span>${wTotal.toFixed(1)}</span><small class="${showCosts && hourlyRate > 0 ? 'cost' : ''}">${showCosts && hourlyRate > 0 ? fmtCost(wTotal) : 'hrs'}</small></td>`;
+  }
+  html += `<td class="data-cell" data-week="total" data-entity="all"><span>${grandTotal.toFixed(1)}</span><small class="${showCosts && hourlyRate > 0 ? 'cost' : ''}">${showCosts && hourlyRate > 0 ? fmtCost(grandTotal) : 'hrs'}</small></td>`;
+  html += '</tr>';
+  html += '</tbody></table>';
+
+  // Legend
+  const legendHtml = `
+    <span>Colour scale (hours):</span>
+    ${colourBreaks.map((b,i) => {
+      const label = i < colourBreaks.length - 1 ? 
+        `${b.toFixed(0)}–${colourBreaks[i+1].toFixed(0)}h` :
+        `${b.toFixed(0)}h+`;
+      return `<span class="legend-item"><span class="legend-swatch heat-${i}"></span>${label}</span>`;
+    }).join('')}
+  `;
+
+  return { html, legendHtml, maxHours };
+}
+
+// =============================================
+// RENDER GRIDS
+// =============================================
+function renderStaffGrid() {
+  const r = realisticMode;
+  const result = buildGrid(staffData, allStaff, allWeeks, staffSort, r);
+  const wrap = document.getElementById('staffGridWrap');
+  if (typeof result === 'string') { wrap.innerHTML = result; return; }
+  wrap.innerHTML = result.html;
+  document.getElementById('staffLegend').innerHTML = result.legendHtml;
+  attachGridEvents(wrap, staffData, 'staff');
+  document.getElementById('staffSortInfo').textContent = 
+    `Sorted by: ${staffSort.col === 'name' ? 'Name' : staffSort.col === 'total' ? 'Total Hours' : 'Week '+staffSort.col} (${staffSort.dir > 0 ? 'asc' : 'desc'})`;
+}
+
+function renderModGrid() {
+  const result = buildGrid(moduleData, allModules, allWeeks, modSort, false);
+  const wrap = document.getElementById('modGridWrap');
+  if (typeof result === 'string') { wrap.innerHTML = result; return; }
+  wrap.innerHTML = result.html;
+  document.getElementById('modLegend').innerHTML = result.legendHtml;
+  attachGridEvents(wrap, moduleData, 'module');
+  document.getElementById('modSortInfo').textContent = 
+    `Sorted by: ${modSort.col === 'name' ? 'Name' : modSort.col === 'total' ? 'Total Hours' : 'Week '+modSort.col} (${modSort.dir > 0 ? 'asc' : 'desc'})`;
+}
+
+function attachGridEvents(wrap, dataMap, type) {
+  wrap.querySelectorAll('.data-cell, .name-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const entity = cell.dataset.entity ? decodeURIComponent(cell.dataset.entity) : null;
+      const week = cell.dataset.week;
+      if (!entity) return;
+      openModal(entity, week, dataMap, type);
+    });
+  });
+
+  // Sort headers
+  const table = wrap.querySelector('table');
+  if (!table) return;
+  table.querySelector('thead').addEventListener('click', e => {
+    const th = e.target.closest('th');
+    if (!th) return;
+    if (th.dataset.sort === 'name' || th.dataset.sort === 'total') {
+      const col = th.dataset.sort;
+      if (type === 'staff') {
+        if (staffSort.col === col) staffSort.dir *= -1;
+        else { staffSort.col = col; staffSort.dir = -1; }
+        renderStaffGrid();
+      } else {
+        if (modSort.col === col) modSort.dir *= -1;
+        else { modSort.col = col; modSort.dir = -1; }
+        renderModGrid();
+      }
+    } else if (th.dataset.sortWeek) {
+      const w = +th.dataset.sortWeek;
+      if (type === 'staff') {
+        if (staffSort.col === w) staffSort.dir *= -1;
+        else { staffSort.col = w; staffSort.dir = -1; }
+        renderStaffGrid();
+      } else {
+        if (modSort.col === w) modSort.dir *= -1;
+        else { modSort.col = w; modSort.dir = -1; }
+        renderModGrid();
+      }
+    }
+  });
+}
+
+// =============================================
+// MODAL
+// =============================================
+function openModal(entity, week, dataMap, type) {
+  const overlay = document.getElementById('modalOverlay');
+  const titleEl = document.getElementById('modalTitle');
+  const subtitleEl = document.getElementById('modalSubtitle');
+  const bodyEl = document.getElementById('modalBody');
+
+  let title = '';
+  let subtitle = '';
+
+  // Compute totalHours using EXACTLY the same method as the grid cells,
+  // i.e. sum calcHours(dataMap[entity][w], realistic) per entity per week.
+  // Never pool-then-deduplicate — that changes the staff-hours accounting.
+  const entities = entity === 'all' ? Object.keys(dataMap) : [entity];
+  const weeks    = (week === 'total' || week === undefined) ? allWeeks : [+week];
+
+  let totalHours = 0;
+  for (const e of entities) {
+    for (const w of weeks) {
+      totalHours += calcHours(dataMap[e]?.[w], realisticMode);
+    }
+  }
+
+  // For the session list we collect unique sessions (deduped) just for display —
+  // this does NOT affect the hours figure shown in the stat tiles.
+  let rawSessions = [];
+  for (const e of entities) {
+    for (const w of weeks) {
+      rawSessions.push(...(dataMap[e]?.[w] || []));
+    }
+  }
+  const uniqueSessions = deduplicateSessions(rawSessions);
+  const realisticHours = calcHours(uniqueSessions, true);
+  const sessionCount   = uniqueSessions.length;
+
+  if (entity === 'all' && week === 'total') {
+    title = 'Grand Total';
+    subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}, all weeks`;
+  } else if (entity === 'all') {
+    title = `Grand Total — Week ${week}`;
+    subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}`;
+  } else if (week === 'total') {
+    title = entity;
+    subtitle = 'All weeks — total';
+  } else {
+    title = entity;
+    subtitle = `Week ${week}`;
+  }
+
+  titleEl.textContent = title;
+  subtitleEl.textContent = subtitle;
+
+  let html = `<div class="modal-stat-row">
+    <div class="modal-stat"><div class="ms-value">${totalHours.toFixed(1)}</div><div class="ms-label">Staff-hours</div></div>
+    <div class="modal-stat"><div class="ms-value">${realisticHours.toFixed(1)}</div><div class="ms-label">Deduplicated hours</div></div>
+    ${hourlyRate > 0 ? `<div class="modal-stat"><div class="ms-value" style="color:var(--gold)">${fmtCost(totalHours)}</div><div class="ms-label">Est. cost @ £${hourlyRate}/hr</div></div>` : ''}
+    <div class="modal-stat"><div class="ms-value">${sessionCount}</div><div class="ms-label">Unique sessions</div></div>
+  </div><div class="session-list">`;
+
+  for (const s of uniqueSessions) {
+    const dur = sessionDuration(s);
+    const staffCount = s.staff ? s.staff.length : 1;
+    const staffHours = dur * staffCount;
+    const mod = s.moduleCode ? `<span class="sc-tag">${s.moduleCode}</span>` : '';
+    const typ = s.type ? `<span class="sc-tag">${s.type}</span>` : '';
+    const staffLabel = staffCount > 1
+      ? `<span title="${staffCount} staff × ${dur.toFixed(1)}h">${staffHours.toFixed(1)} staff-hrs</span>`
+      : ``;
+    html += `<div class="session-card">
+      <div class="sc-title">${mod}${typ}${s.moduleTitle || s.sessionTitle || s.activity || 'Session'}
+        <span class="sc-hours">${dur.toFixed(1)}h${staffCount > 1 ? ` × ${staffCount} staff` : ''}</span>
+      </div>
+      <div class="sc-meta">
+        ${s.day ? `<span>📅 ${s.day}</span>` : ''}
+        ${s.start && s.end ? `<span>🕐 ${s.start}–${s.end}</span>` : ''}
+        ${s.location ? `<span>📍 ${s.location}</span>` : ''}
+        ${s.staff && s.staff.length ? `<span>👤 ${s.staff.join(', ')}</span>` : ''}
+        ${staffCount > 1 ? `<span style="color:var(--mid-blue);font-weight:600">${staffHours.toFixed(1)} staff-hrs</span>` : ''}
+        ${s.groupInfo ? `<span>👥 ${s.groupInfo}</span>` : ''}
+        ${s.notes ? `<span>📝 ${s.notes}</span>` : ''}
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+
+  bodyEl.innerHTML = html;
+  overlay.classList.add('open');
+}
+
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('open');
+});
+
+// =============================================
+// ANALYSE
+// =============================================
+analyseBtn.addEventListener('click', async () => {
+  analyseBtn.disabled = true;
+  analyseBtn.textContent = '⏳ Processing…';
+
+  parsedSessions = [];
+  for (const file of uploadedFiles) {
+    const html = await file.text();
+    parsedSessions.push(...parseHTMLFile(html));
+  }
+
+  const wFrom = +document.getElementById('weekFrom').value || 1;
+  const wTo = +document.getElementById('weekTo').value || 52;
+  weekRange = [wFrom, wTo];
+  realisticMode = document.getElementById('realisticToggle').checked;
+  document.getElementById('realisticToggle2').checked = realisticMode;
+  hourlyRate = parseFloat(document.getElementById('hourlyRate').value) || 0;
+  showCosts = document.getElementById('showCostsToggle').checked;
+  document.getElementById('showCostsToggleMod').checked = showCosts;
+
+  aggregateData(parsedSessions, weekRange[0], weekRange[1], realisticMode);
+
+  // Title
+  const titleInput = document.getElementById('titleInput').value;
+  document.getElementById('analyserTitle').textContent = titleInput || 'Teaching Load Analysis';
+  document.getElementById('analyserMeta').textContent = 
+    `${parsedSessions.length} sessions · ${allStaff.length} staff · ${allModules.length} modules · Weeks ${allWeeks[0]}–${allWeeks[allWeeks.length-1]} · Parsed from ${uploadedFiles.length} file(s)`;
+
+  // Stats
+  const totalHours = parsedSessions.reduce((s, sess) => s + sessionDuration(sess), 0);
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat-card"><div class="sc-v">${parsedSessions.length}</div><div class="sc-l">Total sessions</div></div>
+    <div class="stat-card"><div class="sc-v">${allStaff.length}</div><div class="sc-l">Staff members</div></div>
+    <div class="stat-card"><div class="sc-v">${allModules.length}</div><div class="sc-l">Modules</div></div>
+    <div class="stat-card"><div class="sc-v">${allWeeks.length}</div><div class="sc-l">Weeks with activity</div></div>
+    <div class="stat-card"><div class="sc-v">${totalHours.toFixed(0)}</div><div class="sc-l">Total contact hours</div></div>
+    ${hourlyRate > 0 ? `<div class="stat-card"><div class="sc-v" style="color:var(--gold)">${fmtCost(totalHours)}</div><div class="sc-l">Est. total cost @ £${hourlyRate}/hr</div></div>` : ''}
+  `;
+
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('analyser').style.display = 'block';
+
+  renderStaffGrid();
+  renderModGrid();
+
+  analyseBtn.disabled = false;
+  analyseBtn.textContent = '📊 Analyse Timetable';
+});
+
+// Sync realistic toggle in analyser view
+document.getElementById('realisticToggle2').addEventListener('change', e => {
+  realisticMode = e.target.checked;
+  renderStaffGrid();
+});
+
+// Sync showCosts toggles
+document.getElementById('showCostsToggle').addEventListener('change', e => {
+  showCosts = e.target.checked;
+  document.getElementById('showCostsToggleMod').checked = showCosts;
+  renderStaffGrid();
+  renderModGrid();
+});
+document.getElementById('showCostsToggleMod').addEventListener('change', e => {
+  showCosts = e.target.checked;
+  document.getElementById('showCostsToggle').checked = showCosts;
+  renderStaffGrid();
+  renderModGrid();
+});
+
+// =============================================
+// TABS
+// =============================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    document.getElementById('tab-staff').style.display = currentTab === 'staff' ? '' : 'none';
+    document.getElementById('tab-modules').style.display = currentTab === 'modules' ? '' : 'none';
+  });
+});
+
+// =============================================
+// SORT BUTTONS
+// =============================================
+document.getElementById('sortStaffName').addEventListener('click', () => {
+  if (staffSort.col === 'name') staffSort.dir *= -1;
+  else { staffSort.col = 'name'; staffSort.dir = 1; }
+  renderStaffGrid();
+});
+document.getElementById('sortStaffTotal').addEventListener('click', () => {
+  if (staffSort.col === 'total') staffSort.dir *= -1;
+  else { staffSort.col = 'total'; staffSort.dir = -1; }
+  renderStaffGrid();
+});
+document.getElementById('sortModName').addEventListener('click', () => {
+  if (modSort.col === 'name') modSort.dir *= -1;
+  else { modSort.col = 'name'; modSort.dir = 1; }
+  renderModGrid();
+});
+document.getElementById('sortModTotal').addEventListener('click', () => {
+  if (modSort.col === 'total') modSort.dir *= -1;
+  else { modSort.col = 'total'; modSort.dir = -1; }
+  renderModGrid();
+});
+
+// =============================================
+// BACK BUTTON
+// =============================================
+document.getElementById('btnBack').addEventListener('click', () => {
+  document.getElementById('landing').style.display = '';
+  document.getElementById('analyser').style.display = 'none';
+});
+
+// =============================================
+// EXPORT XLSX
+// =============================================
+document.getElementById('btnExportXlsx').addEventListener('click', () => {
+  const wb = XLSX.utils.book_new();
+
+  // Staff sheet
+  const rateLabel = hourlyRate > 0 ? ` (hrs)` : '';
+  const costLabel = hourlyRate > 0 ? ` (£ @ £${hourlyRate}/hr)` : null;
+  const weekHdrStaff = allWeeks.flatMap(w => hourlyRate > 0 ? [`Week ${w} hrs`, `Week ${w} cost`] : [`Week ${w}`]);
+  const staffHdr = ['Staff', ...weekHdrStaff, 'Total hrs', ...(hourlyRate > 0 ? ['Total cost (£)'] : [])];
+  const staffRows = [staffHdr];
+  for (const name of allStaff) {
+    const row = [name];
+    let total = 0;
+    for (const w of allWeeks) {
+      const h = calcHours(staffData[name]?.[w], realisticMode);
+      if (hourlyRate > 0) row.push(h || '', h > 0 ? +(h * hourlyRate).toFixed(2) : '');
+      else row.push(h || '');
+      total += h;
+    }
+    row.push(+total.toFixed(2));
+    if (hourlyRate > 0) row.push(+(total * hourlyRate).toFixed(2));
+    staffRows.push(row);
+  }
+  // Totals row
+  const totRow = ['Grand Total'];
+  let gt = 0;
+  for (const w of allWeeks) {
+    const wt = allStaff.reduce((s,e) => s + calcHours(staffData[e]?.[w], realisticMode), 0);
+    if (hourlyRate > 0) totRow.push(+wt.toFixed(2), +(wt * hourlyRate).toFixed(2));
+    else totRow.push(+wt.toFixed(2));
+    gt += wt;
+  }
+  totRow.push(+gt.toFixed(2));
+  if (hourlyRate > 0) totRow.push(+(gt * hourlyRate).toFixed(2));
+  staffRows.push(totRow);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(staffRows), 'Staff Load');
+
+  // Module sheet
+  const weekHdrMod = allWeeks.flatMap(w => hourlyRate > 0 ? [`Week ${w} hrs`, `Week ${w} cost`] : [`Week ${w}`]);
+  const modRows = [['Module', ...weekHdrMod, 'Total hrs', ...(hourlyRate > 0 ? ['Total cost (£)'] : [])]];
+  for (const mod of allModules) {
+    const row = [mod];
+    let total = 0;
+    for (const w of allWeeks) {
+      const h = calcHours(moduleData[mod]?.[w], false);
+      if (hourlyRate > 0) row.push(h || '', h > 0 ? +(h * hourlyRate).toFixed(2) : '');
+      else row.push(h || '');
+      total += h;
+    }
+    row.push(+total.toFixed(2));
+    if (hourlyRate > 0) row.push(+(total * hourlyRate).toFixed(2));
+    modRows.push(row);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(modRows), 'Module Load');
+
+  // Sessions sheet
+  const sessRows = [['Activity','Module Code','Module Title','Session Title','Type','Weeks','Day','Start','End','Staff','Location','Group Info','Notes']];
+  for (const s of parsedSessions) {
+    sessRows.push([s.activity, s.moduleCode, s.moduleTitle, s.sessionTitle, s.type,
+      s.weeksRaw, s.day, s.start, s.end, s.staff.join('; '), s.location, s.groupInfo, s.notes]);
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sessRows), 'Sessions');
+
+  const titleStr = (document.getElementById('titleInput').value || 'teaching-load-analysis').replace(/[^a-z0-9]/gi,'_');
+  XLSX.writeFile(wb, `${titleStr}.xlsx`);
+});
+
+// =============================================
+// EXPORT PNG
+// =============================================
+document.getElementById('btnExportPng').addEventListener('click', async () => {
+  const target = currentTab === 'staff' 
+    ? document.getElementById('staffGridWrap')
+    : document.getElementById('modGridWrap');
+  
+  const canvas = await html2canvas(target, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    useCORS: true
+  });
+  
+  const link = document.createElement('a');
+  const titleStr = (document.getElementById('titleInput').value || 'teaching-load').replace(/[^a-z0-9]/gi,'_');
+  link.download = `${titleStr}_${currentTab}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+</script>
+</body>
+</html>
