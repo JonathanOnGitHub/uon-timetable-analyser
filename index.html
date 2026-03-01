@@ -632,7 +632,7 @@
   <div class="header-logo">
     <div class="logo-mark">TL</div>
     <div>
-      <div class="header-title">Universtiy of Nottingham Teaching Load Analyser</div>
+      <div class="header-title">University of Nottingham Teaching Load Analyser</div>
       <div class="header-sub">University Timetable Analytics</div>
     </div>
   </div>
@@ -647,12 +647,12 @@
     <div class="hero-eyebrow">Teaching Analytics Tool</div>
     <h1 class="hero-h1">Analyse staff teaching loads from timetable files</h1>
     <p class="hero-desc">
-      Upload exported HTML timetable files from your university timetabling system. The tool parses session data, calculates weekly contact hours, and generates interactive heatmap-style grids for staff and modules. There's an alternate version <a href="https://uon-timetable-analyser.co.uk/Deepseek_v0.2.html">here</a>.
+      Upload exported HTML timetable files from your university timetabling system. The tool parses session data, calculates weekly contact hours, and generates interactive heatmap grids for staff and modules. There are alternatve versions <a href="https://uon-timetable-analyser.co.uk/Deepseek_v0.2.html">here</a> and <a href="https://uon-timetable-analyser.co.uk/Claude_v0.2.html">here</a> (latter with estimated financial costings).
     </p>
     <div class="privacy-box">
       <span>🔒</span>
       <div>
-        <strong>100% browser-based processing.</strong> Your timetable data never leaves your device. No server, no uploads, no tracking. Close the tab or reload page to clear everything.
+        <strong>100% browser-based processing.</strong> Your timetable data never leaves your device. No server, no uploads, no tracking. Close the tab to clear everything.
       </div>
     </div>
   </div>
@@ -1066,6 +1066,7 @@ function calcHours(sessions, realistic) {
   return Math.round(total * 100) / 100;
 }
 
+
 // =============================================
 // SESSION DEDUPLICATION
 // =============================================
@@ -1265,70 +1266,76 @@ function openModal(entity, week, dataMap, type) {
   const subtitleEl = document.getElementById('modalSubtitle');
   const bodyEl = document.getElementById('modalBody');
 
-  let sessions = [];
   let title = '';
   let subtitle = '';
 
-  if (entity === 'all') {
-    // Grand total — collect all
-    if (week === 'total') {
-      const keys = Object.keys(dataMap);
-      for (const k of keys) {
-        for (const w of allWeeks) {
-          sessions.push(...(dataMap[k]?.[w] || []));
-        }
-      }
-      title = 'Grand Total';
-      subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}, all weeks`;
-    } else {
-      const keys = Object.keys(dataMap);
-      for (const k of keys) {
-        sessions.push(...(dataMap[k]?.[week] || []));
-      }
-      title = `Grand Total — Week ${week}`;
-      subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}`;
+  // Compute totalHours using EXACTLY the same method as the grid cells,
+  // i.e. sum calcHours(dataMap[entity][w], realistic) per entity per week.
+  // Never pool-then-deduplicate — that changes the staff-hours accounting.
+  const entities = entity === 'all' ? Object.keys(dataMap) : [entity];
+  const weeks    = (week === 'total' || week === undefined) ? allWeeks : [+week];
+
+  let totalHours = 0;
+  for (const e of entities) {
+    for (const w of weeks) {
+      totalHours += calcHours(dataMap[e]?.[w], realisticMode);
     }
+  }
+
+  // For the session list we collect unique sessions (deduped) just for display —
+  // this does NOT affect the hours figure shown in the stat tiles.
+  let rawSessions = [];
+  for (const e of entities) {
+    for (const w of weeks) {
+      rawSessions.push(...(dataMap[e]?.[w] || []));
+    }
+  }
+  const uniqueSessions = deduplicateSessions(rawSessions);
+  const realisticHours = calcHours(uniqueSessions, true);
+  const sessionCount   = uniqueSessions.length;
+
+  if (entity === 'all' && week === 'total') {
+    title = 'Grand Total';
+    subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}, all weeks`;
+  } else if (entity === 'all') {
+    title = `Grand Total — Week ${week}`;
+    subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}`;
   } else if (week === 'total') {
-    for (const w of allWeeks) {
-      sessions.push(...(dataMap[entity]?.[w] || []));
-    }
     title = entity;
-    subtitle = `All weeks — total`;
+    subtitle = 'All weeks — total';
   } else {
-    sessions = dataMap[entity]?.[week] || [];
     title = entity;
     subtitle = `Week ${week}`;
   }
-
-  // Deduplicate using shared helper (same logic as grand totals row)
-  const uniqueSessions = deduplicateSessions(sessions);
-
-  const totalHours = calcHours(uniqueSessions, false);
-  const realisticHours = calcHours(uniqueSessions, true);
-  const sessionCount = uniqueSessions.length;
 
   titleEl.textContent = title;
   subtitleEl.textContent = subtitle;
 
   let html = `<div class="modal-stat-row">
-    <div class="modal-stat"><div class="ms-value">${totalHours.toFixed(1)}</div><div class="ms-label">Contact hours</div></div>
+    <div class="modal-stat"><div class="ms-value">${totalHours.toFixed(1)}</div><div class="ms-label">Staff-hours</div></div>
     <div class="modal-stat"><div class="ms-value">${realisticHours.toFixed(1)}</div><div class="ms-label">Deduplicated hours</div></div>
-    <div class="modal-stat"><div class="ms-value">${sessionCount}</div><div class="ms-label">Sessions</div></div>
+    <div class="modal-stat"><div class="ms-value">${sessionCount}</div><div class="ms-label">Unique sessions</div></div>
   </div><div class="session-list">`;
 
   for (const s of uniqueSessions) {
     const dur = sessionDuration(s);
+    const staffCount = s.staff ? s.staff.length : 1;
+    const staffHours = dur * staffCount;
     const mod = s.moduleCode ? `<span class="sc-tag">${s.moduleCode}</span>` : '';
     const typ = s.type ? `<span class="sc-tag">${s.type}</span>` : '';
+    const staffLabel = staffCount > 1
+      ? `<span title="${staffCount} staff × ${dur.toFixed(1)}h">${staffHours.toFixed(1)} staff-hrs</span>`
+      : ``;
     html += `<div class="session-card">
       <div class="sc-title">${mod}${typ}${s.moduleTitle || s.sessionTitle || s.activity || 'Session'}
-        <span class="sc-hours">${dur.toFixed(1)}h</span>
+        <span class="sc-hours">${dur.toFixed(1)}h${staffCount > 1 ? ` × ${staffCount} staff` : ''}</span>
       </div>
       <div class="sc-meta">
         ${s.day ? `<span>📅 ${s.day}</span>` : ''}
         ${s.start && s.end ? `<span>🕐 ${s.start}–${s.end}</span>` : ''}
         ${s.location ? `<span>📍 ${s.location}</span>` : ''}
-        ${s.staff && s.staff.length > 1 ? `<span>👤 ${s.staff.join(', ')}</span>` : ''}
+        ${s.staff && s.staff.length ? `<span>👤 ${s.staff.join(', ')}</span>` : ''}
+        ${staffCount > 1 ? `<span style="color:var(--mid-blue);font-weight:600">${staffHours.toFixed(1)} staff-hrs</span>` : ''}
         ${s.groupInfo ? `<span>👥 ${s.groupInfo}</span>` : ''}
         ${s.notes ? `<span>📝 ${s.notes}</span>` : ''}
       </div>
@@ -1462,7 +1469,7 @@ document.getElementById('btnExportXlsx').addEventListener('click', () => {
       row.push(h || '');
       total += h;
     }
-    row.push(total.toFixed(2));
+    row.push(+total.toFixed(2));
     staffRows.push(row);
   }
   // Totals row
@@ -1470,10 +1477,10 @@ document.getElementById('btnExportXlsx').addEventListener('click', () => {
   let gt = 0;
   for (const w of allWeeks) {
     const wt = allStaff.reduce((s,e) => s + calcHours(staffData[e]?.[w], realisticMode), 0);
-    totRow.push(wt.toFixed(2));
+    totRow.push(+wt.toFixed(2));
     gt += wt;
   }
-  totRow.push(gt.toFixed(2));
+  totRow.push(+gt.toFixed(2));
   staffRows.push(totRow);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(staffRows), 'Staff Load');
 
@@ -1487,7 +1494,7 @@ document.getElementById('btnExportXlsx').addEventListener('click', () => {
       row.push(h || '');
       total += h;
     }
-    row.push(total.toFixed(2));
+    row.push(+total.toFixed(2));
     modRows.push(row);
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(modRows), 'Module Load');
