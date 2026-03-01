@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>University Timetable Load Analyser</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* University of Nottingham branding */
+        .header {
+            background: linear-gradient(135deg, #041e42 0%, #0066cc 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 0.9em;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .landing-section {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+            border: 1px solid #e1e8ed;
+        }
+
+        .landing-section h2 {
+            color: #041e42;
+            margin-bottom: 20px;
+        }
+
+        .feature-list {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .feature-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            width: 250px;
+            border-left: 4px solid #0066cc;
+        }
+
+        .feature-item i {
+            font-size: 2em;
+            color: #0066cc;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .upload-area {
+            border: 3px dashed #cbd5e0;
+            padding: 40px;
+            border-radius: 10px;
+            background: #fafbfc;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 20px 0;
+        }
+
+        .upload-area:hover {
+            border-color: #0066cc;
+            background: #f0f7ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #041e42;
+            background: #e8f0fe;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #041e42;
+        }
+
+        input[type="text"], input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+        }
+
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #041e42;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #545b62;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            background: white;
+            padding: 5px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            padding: 12px 30px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #e8f0fe;
+            color: #0066cc;
+        }
+
+        .tab.active {
+            background: #041e42;
+            color: white;
+        }
+
+        .table-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #041e42;
+            font-weight: 600;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #0066cc;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #e8f0fe;
+        }
+
+        th.sort-asc::after {
+            content: " ▲";
+            font-size: 12px;
+            color: #0066cc;
+        }
+
+        th.sort-desc::after {
+            content: " ▼";
+            font-size: 12px;
+            color: #0066cc;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .grand-total {
+            background: #041e42;
+            color: white;
+            font-weight: 600;
+        }
+
+        .grand-total td {
+            border-bottom: none;
+        }
+
+        .grand-total:hover {
+            background: #0a2a5a;
+        }
+
+        .colour-cell {
+            transition: opacity 0.3s;
+            cursor: pointer;
+        }
+
+        .colour-cell:hover {
+            opacity: 0.8;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-close:hover {
+            color: #041e42;
+        }
+
+        .session-detail {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #0066cc;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .week-range {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .week-range input {
+            width: 70px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #0066cc;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .file-list {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .file-item {
+            padding: 5px;
+            color: #041e42;
+            font-size: 0.9em;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .sort-indicator {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .week-badge {
+            display: inline-block;
+            background: #0066cc;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header no-print">
+            <h1>📊 University Timetable Load Analyser</h1>
+            <p>Analyse teaching loads across staff and modules with intelligent overlap detection</p>
+            <span class="badge">🔒 All processing happens locally in your browser</span>
+        </div>
+
+        <div id="landing" class="landing-section no-print">
+            <h2>Welcome to the Timetable Analyser</h2>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <i>📁</i>
+                    <h3>Local Processing</h3>
+                    <p>Your files never leave your device - complete privacy</p>
+                </div>
+                <div class="feature-item">
+                    <i>🕒</i>
+                    <h3>Smart Overlap Detection</h3>
+                    <p>Toggle realistic hours to count concurrent sessions only once</p>
+                </div>
+                <div class="feature-item">
+                    <i>📊</i>
+                    <h3>Rich Visualisation</h3>
+                    <p>Colour-coded grids with drill-down details</p>
+                </div>
+                <div class="feature-item">
+                    <i>📤</i>
+                    <h3>Export Options</h3>
+                    <p>Export to Excel or PNG for reporting</p>
+                </div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <p style="font-size: 1.2em; margin-bottom: 10px;">📤 Drop your timetable HTML files here</p>
+                <p style="color: #666;">or click to select files</p>
+                <input type="file" id="fileInput" multiple accept=".html,.htm" style="display: none;">
+            </div>
+
+            <div id="fileList" class="file-list"></div>
+        </div>
+
+        <div id="analysisControls" class="controls no-print" style="display: none;">
+            <div class="control-group">
+                <label>Analysis Title:</label>
+                <input type="text" id="analysisTitle" placeholder="Enter title..." value="Teaching Load Analysis">
+            </div>
+
+            <div class="control-group">
+                <label>Week Range:</label>
+                <div class="week-range">
+                    <input type="number" id="weekStart" placeholder="Start" min="1" max="52" value="1">
+                    <span>to</span>
+                    <input type="number" id="weekEnd" placeholder="End" min="1" max="52" value="52">
+                </div>
+                <button id="applyWeekRange" class="secondary" style="padding: 5px 15px;">Apply</button>
+                <button id="clearWeekRange" class="secondary" style="padding: 5px 15px;">Clear</button>
+            </div>
+
+            <div class="control-group">
+                <label>Realistic Hours:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="realisticToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span style="font-size: 0.9em; color: #666;">(count overlapping sessions once)</span>
+            </div>
+
+            <div class="export-buttons">
+                <button id="exportExcel" class="secondary">📊 Export to Excel</button>
+                <button id="exportPNG">📸 Export as PNG</button>
+            </div>
+        </div>
+
+        <div class="tabs no-print" id="tabs" style="display: none;">
+            <div class="tab active" data-tab="staff">👥 Staff View</div>
+            <div class="tab" data-tab="modules">📚 Modules View</div>
+        </div>
+
+        <div id="staffView" class="table-container" style="display: none;">
+            <h2 id="staffTitle">Staff Teaching Load Analysis <span id="staffWeekRange" class="week-badge"></span></h2>
+            <div id="staffTable"></div>
+        </div>
+
+        <div id="modulesView" class="table-container" style="display: none;">
+            <h2 id="modulesTitle">Module Teaching Load Analysis <span id="moduleWeekRange" class="week-badge"></span></h2>
+            <div id="modulesTable"></div>
+        </div>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close">&times;</span>
+                <h3 id="modalTitle">Session Details</h3>
+                <div id="modalContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <script>
+        class TimetableAnalyser {
+            constructor() {
+                this.sessions = [];
+                this.staffMap = new Map();
+                this.moduleMap = new Map();
+                this.allWeekNumbers = []; // Store all weeks from data
+                this.filteredWeekNumbers = []; // Store filtered weeks
+                this.files = [];
+                
+                // Sorting state
+                this.sortState = {
+                    staff: { column: 'name', direction: 'asc' },
+                    modules: { column: 'code', direction: 'asc' }
+                };
+                
+                this.initEventListeners();
+            }
+
+            initEventListeners() {
+                // File upload handling
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
+
+                uploadArea.addEventListener('click', () => fileInput.click());
+                
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    this.handleFiles(e.dataTransfer.files);
+                });
+
+                fileInput.addEventListener('change', (e) => {
+                    this.handleFiles(e.target.files);
+                });
+
+                // Tab switching
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        this.switchView(tab.dataset.tab);
+                    });
+                });
+
+                // Export buttons
+                document.getElementById('exportExcel').addEventListener('click', () => this.exportToExcel());
+                document.getElementById('exportPNG').addEventListener('click', () => this.exportToPNG());
+
+                // Realistic hours toggle
+                document.getElementById('realisticToggle').addEventListener('change', () => {
+                    this.calculateHours();
+                    this.refreshViews();
+                });
+
+                // Week range controls
+                document.getElementById('applyWeekRange').addEventListener('click', () => {
+                    this.applyWeekRange();
+                    this.calculateHours();
+                    this.refreshViews();
+                });
+
+                document.getElementById('clearWeekRange').addEventListener('click', () => {
+                    document.getElementById('weekStart').value = '';
+                    document.getElementById('weekEnd').value = '';
+                    this.resetWeekRange();
+                    this.calculateHours();
+                    this.refreshViews();
+                });
+
+                // Analysis title input
+                document.getElementById('analysisTitle').addEventListener('input', () => this.refreshViews());
+
+                // Modal close
+                document.querySelector('.modal-close').addEventListener('click', () => {
+                    document.getElementById('modal').classList.remove('active');
+                });
+
+                // Close modal on outside click
+                document.getElementById('modal').addEventListener('click', (e) => {
+                    if (e.target === document.getElementById('modal')) {
+                        document.getElementById('modal').classList.remove('active');
+                    }
+                });
+            }
+
+            handleFiles(files) {
+                this.files = [...files];
+                this.updateFileList();
+                this.sessions = [];
+                
+                let filesProcessed = 0;
+                
+                Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.parseHTML(e.target.result);
+                        filesProcessed++;
+                        
+                        if (filesProcessed === files.length) {
+                            if (this.sessions.length > 0) {
+                                this.processData();
+                                this.showAnalysisControls();
+                            } else {
+                                alert('No valid timetable data found in the uploaded files.');
+                            }
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            updateFileList() {
+                const fileList = document.getElementById('fileList');
+                fileList.innerHTML = '<h4>📎 Loaded files:</h4>' + 
+                    this.files.map(f => `<div class="file-item">📄 ${f.name}</div>`).join('');
+            }
+
+            parseHTML(html) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const tables = doc.getElementsByTagName('table');
+
+                for (let table of tables) {
+                    const headers = this.getTableHeaders(table);
+                    if (this.validateHeaders(headers)) {
+                        this.extractSessions(table, headers);
+                    }
+                }
+            }
+
+            getTableHeaders(table) {
+                const headers = [];
+                const headerRow = table.querySelector('tr');
+                if (headerRow) {
+                    headerRow.querySelectorAll('th, td').forEach(cell => {
+                        headers.push(cell.textContent.trim());
+                    });
+                }
+                return headers;
+            }
+
+            validateHeaders(headers) {
+                const required = ['Activity', 'Module Code', 'Staff'];
+                return required.every(r => headers.some(h => h.includes(r)));
+            }
+
+            extractSessions(table, headers) {
+                const rows = table.querySelectorAll('tr');
+                
+                for (let i = 1; i < rows.length; i++) {
+                    const cells = rows[i].querySelectorAll('td');
+                    if (cells.length < headers.length) continue;
+
+                    const session = {};
+                    headers.forEach((header, index) => {
+                        if (cells[index]) {
+                            session[header] = cells[index].innerHTML.trim();
+                        } else {
+                            session[header] = '';
+                        }
+                    });
+
+                    // Parse weeks
+                    const weeksStr = session['Weeks'] || '';
+                    session.weekNumbers = this.parseWeeks(weeksStr);
+                    
+                    // Parse staff (handling <br> tags)
+                    const staffHtml = session['Staff'] || '';
+                    session.staffList = staffHtml.split(/<br\s*\/?>/i).map(s => s.trim()).filter(s => s);
+                    
+                    // Parse times
+                    session.startTime = this.parseTime(session['Start']);
+                    session.endTime = this.parseTime(session['End']);
+                    
+                    this.sessions.push(session);
+                }
+            }
+
+            parseWeeks(weeksStr) {
+                const weeks = new Set();
+                // Remove any HTML tags first
+                const cleanStr = weeksStr.replace(/<[^>]*>/g, '');
+                const parts = cleanStr.split(',');
+                
+                parts.forEach(part => {
+                    part = part.trim();
+                    if (part.includes('-')) {
+                        const [start, end] = part.split('-').map(Number);
+                        if (!isNaN(start) && !isNaN(end)) {
+                            for (let w = start; w <= end; w++) {
+                                weeks.add(w);
+                            }
+                        }
+                    } else {
+                        const num = parseInt(part);
+                        if (!isNaN(num)) {
+                            weeks.add(num);
+                        }
+                    }
+                });
+                
+                return Array.from(weeks);
+            }
+
+            parseTime(timeStr) {
+                if (!timeStr) return null;
+                // Remove HTML tags
+                const cleanStr = timeStr.replace(/<[^>]*>/g, '').trim();
+                const match = cleanStr.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/i);
+                if (!match) return null;
+                
+                let hours = parseInt(match[1]);
+                const minutes = parseInt(match[2]) || 0;
+                
+                if (match[3] && match[3].toLowerCase() === 'pm' && hours < 12) {
+                    hours += 12;
+                } else if (match[3] && match[3].toLowerCase() === 'am' && hours === 12) {
+                    hours = 0;
+                }
+                
+                return hours + minutes / 60;
+            }
+
+            processData() {
+                const weekSet = new Set();
+                this.staffMap.clear();
+                this.moduleMap.clear();
+
+                // Collect all weeks and build data structures
+                this.sessions.forEach(session => {
+                    session.weekNumbers.forEach(w => weekSet.add(w));
+                    
+                    // Process staff
+                    session.staffList.forEach(staffName => {
+                        if (!staffName) return;
+                        
+                        if (!this.staffMap.has(staffName)) {
+                            this.staffMap.set(staffName, {
+                                name: staffName,
+                                sessions: [],
+                                weekHours: new Map()
+                            });
+                        }
+                        this.staffMap.get(staffName).sessions.push(session);
+                    });
+
+                    // Process modules
+                    const moduleCode = session['Module Code'];
+                    if (moduleCode) {
+                        if (!this.moduleMap.has(moduleCode)) {
+                            this.moduleMap.set(moduleCode, {
+                                code: moduleCode,
+                                title: session['Module Title'] || '',
+                                sessions: [],
+                                weekHours: new Map()
+                            });
+                        }
+                        this.moduleMap.get(moduleCode).sessions.push(session);
+                    }
+                });
+
+                // Store all weeks
+                this.allWeekNumbers = Array.from(weekSet).sort((a, b) => a - b);
+                
+                // Initialize filtered weeks to all weeks
+                this.resetWeekRange();
+            }
+
+            resetWeekRange() {
+                this.filteredWeekNumbers = [...this.allWeekNumbers];
+                this.updateWeekRangeDisplay();
+            }
+
+            applyWeekRange() {
+                const start = parseInt(document.getElementById('weekStart').value);
+                const end = parseInt(document.getElementById('weekEnd').value);
+                
+                if (!isNaN(start) && !isNaN(end) && start <= end) {
+                    this.filteredWeekNumbers = this.allWeekNumbers.filter(w => w >= start && w <= end);
+                } else if (!isNaN(start)) {
+                    this.filteredWeekNumbers = this.allWeekNumbers.filter(w => w >= start);
+                } else if (!isNaN(end)) {
+                    this.filteredWeekNumbers = this.allWeekNumbers.filter(w => w <= end);
+                }
+                
+                this.updateWeekRangeDisplay();
+            }
+
+            updateWeekRangeDisplay() {
+                const rangeText = this.filteredWeekNumbers.length > 0 
+                    ? `Weeks ${Math.min(...this.filteredWeekNumbers)}-${Math.max(...this.filteredWeekNumbers)}`
+                    : 'No weeks selected';
+                
+                document.getElementById('staffWeekRange').textContent = rangeText;
+                document.getElementById('moduleWeekRange').textContent = rangeText;
+            }
+
+            calculateHours() {
+                const realistic = document.getElementById('realisticToggle').checked;
+                const weeks = this.filteredWeekNumbers;
+
+                // Calculate for staff
+                this.staffMap.forEach(staff => {
+                    staff.weekHours.clear();
+                    
+                    weeks.forEach(week => {
+                        let hours = 0;
+                        
+                        if (realistic) {
+                            // Group sessions by day and count overlapping ones once
+                            const daySessions = new Map();
+                            
+                            staff.sessions.forEach(session => {
+                                if (session.weekNumbers.includes(week)) {
+                                    const day = session['Day'];
+                                    if (!daySessions.has(day)) {
+                                        daySessions.set(day, []);
+                                    }
+                                    daySessions.get(day).push(session);
+                                }
+                            });
+
+                            // For each day, calculate total hours considering overlaps
+                            daySessions.forEach(sessions => {
+                                if (sessions.length === 0) return;
+                                
+                                // Sort by start time
+                                sessions.sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
+                                
+                                let dayHours = 0;
+                                let currentEnd = 0;
+                                
+                                sessions.forEach(session => {
+                                    if (session.startTime && session.endTime) {
+                                        if (session.startTime > currentEnd) {
+                                            // No overlap
+                                            dayHours += session.endTime - session.startTime;
+                                            currentEnd = session.endTime;
+                                        } else if (session.endTime > currentEnd) {
+                                            // Partial overlap
+                                            dayHours += session.endTime - currentEnd;
+                                            currentEnd = session.endTime;
+                                        }
+                                    }
+                                });
+                                
+                                hours += dayHours;
+                            });
+                        } else {
+                            // Simple sum of all session hours
+                            staff.sessions.forEach(session => {
+                                if (session.weekNumbers.includes(week) && session.startTime && session.endTime) {
+                                    hours += session.endTime - session.startTime;
+                                }
+                            });
+                        }
+                        
+                        staff.weekHours.set(week, Math.round(hours * 100) / 100);
+                    });
+                });
+
+                // Calculate for modules
+                this.moduleMap.forEach(module => {
+                    module.weekHours.clear();
+                    
+                    weeks.forEach(week => {
+                        let hours = 0;
+                        
+                        module.sessions.forEach(session => {
+                            if (session.weekNumbers.includes(week) && session.startTime && session.endTime) {
+                                hours += session.endTime - session.startTime;
+                            }
+                        });
+                        
+                        module.weekHours.set(week, Math.round(hours * 100) / 100);
+                    });
+                });
+            }
+
+            refreshViews() {
+                this.calculateHours();
+                this.renderStaffView();
+                this.renderModulesView();
+            }
+
+            // Sorting methods
+            sortStaff(column) {
+                if (this.sortState.staff.column === column) {
+                    this.sortState.staff.direction = this.sortState.staff.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortState.staff.column = column;
+                    this.sortState.staff.direction = 'asc';
+                }
+                this.renderStaffView();
+            }
+
+            sortModules(column) {
+                if (this.sortState.modules.column === column) {
+                    this.sortState.modules.direction = this.sortState.modules.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortState.modules.column = column;
+                    this.sortState.modules.direction = 'asc';
+                }
+                this.renderModulesView();
+            }
+
+            getSortedStaff() {
+                const staff = Array.from(this.staffMap.values());
+                const { column, direction } = this.sortState.staff;
+                
+                return staff.sort((a, b) => {
+                    let valA, valB;
+                    
+                    if (column === 'name') {
+                        valA = a.name.toLowerCase();
+                        valB = b.name.toLowerCase();
+                    } else if (column === 'total') {
+                        valA = this.calculateTotalHours(a);
+                        valB = this.calculateTotalHours(b);
+                    } else if (!isNaN(column)) {
+                        // Week column
+                        valA = a.weekHours.get(parseInt(column)) || 0;
+                        valB = b.weekHours.get(parseInt(column)) || 0;
+                    } else {
+                        valA = a.name.toLowerCase();
+                        valB = b.name.toLowerCase();
+                    }
+                    
+                    if (direction === 'asc') {
+                        return valA > valB ? 1 : valA < valB ? -1 : 0;
+                    } else {
+                        return valA < valB ? 1 : valA > valB ? -1 : 0;
+                    }
+                });
+            }
+
+            getSortedModules() {
+                const modules = Array.from(this.moduleMap.values());
+                const { column, direction } = this.sortState.modules;
+                
+                return modules.sort((a, b) => {
+                    let valA, valB;
+                    
+                    if (column === 'code') {
+                        valA = a.code.toLowerCase();
+                        valB = b.code.toLowerCase();
+                    } else if (column === 'title') {
+                        valA = (a.title || '').toLowerCase();
+                        valB = (b.title || '').toLowerCase();
+                    } else if (column === 'total') {
+                        valA = this.calculateModuleTotalHours(a);
+                        valB = this.calculateModuleTotalHours(b);
+                    } else if (!isNaN(column)) {
+                        // Week column
+                        valA = a.weekHours.get(parseInt(column)) || 0;
+                        valB = b.weekHours.get(parseInt(column)) || 0;
+                    } else {
+                        valA = a.code.toLowerCase();
+                        valB = b.code.toLowerCase();
+                    }
+                    
+                    if (direction === 'asc') {
+                        return valA > valB ? 1 : valA < valB ? -1 : 0;
+                    } else {
+                        return valA < valB ? 1 : valA > valB ? -1 : 0;
+                    }
+                });
+            }
+
+            calculateTotalHours(staff) {
+                let total = 0;
+                this.filteredWeekNumbers.forEach(week => {
+                    total += staff.weekHours.get(week) || 0;
+                });
+                return Math.round(total * 100) / 100;
+            }
+
+            calculateModuleTotalHours(module) {
+                let total = 0;
+                this.filteredWeekNumbers.forEach(week => {
+                    total += module.weekHours.get(week) || 0;
+                });
+                return Math.round(total * 100) / 100;
+            }
+
+            renderStaffView() {
+                const title = document.getElementById('analysisTitle').value || 'Staff Teaching Load Analysis';
+                document.getElementById('staffTitle').innerHTML = title + ' <span id="staffWeekRange" class="week-badge"></span>';
+                this.updateWeekRangeDisplay();
+
+                const staff = this.getSortedStaff();
+                const weeks = this.filteredWeekNumbers;
+                
+                if (weeks.length === 0) {
+                    document.getElementById('staffTable').innerHTML = '<p class="error-message">No weeks selected. Please adjust the week range.</p>';
+                    return;
+                }
+
+                let html = '<table><thead><tr>';
+                
+                // Headers with sort indicators
+                html += `<th onclick="analyser.sortStaff('name')" class="${this.sortState.staff.column === 'name' ? 'sort-' + this.sortState.staff.direction : ''}">Staff Name</th>`;
+                
+                weeks.forEach(week => {
+                    html += `<th onclick="analyser.sortStaff(${week})" class="${this.sortState.staff.column === week ? 'sort-' + this.sortState.staff.direction : ''}">Week ${week}</th>`;
+                });
+                
+                html += `<th onclick="analyser.sortStaff('total')" class="${this.sortState.staff.column === 'total' ? 'sort-' + this.sortState.staff.direction : ''}">Total</th>`;
+                html += '</tr></thead><tbody>';
+
+                // Staff rows
+                staff.forEach(person => {
+                    const total = this.calculateTotalHours(person);
+                    html += '<tr>';
+                    html += `<td><strong>${person.name}</strong></td>`;
+                    
+                    weeks.forEach(week => {
+                        const hours = person.weekHours.get(week) || 0;
+                        const colour = this.getColourForHours(hours);
+                        html += `<td class="colour-cell" style="background-color: ${colour}" 
+                                 onclick="analyser.showDetails('staff', '${person.name.replace(/'/g, "\\'")}', ${week})">${hours}h</td>`;
+                    });
+                    
+                    const totalColour = this.getColourForHours(total);
+                    html += `<td class="colour-cell" style="background-color: ${totalColour}"
+                             onclick="analyser.showDetails('staff', '${person.name.replace(/'/g, "\\'")}', 'total')">${total}h</td>`;
+                    html += '</tr>';
+                });
+
+                // Grand total row
+                html += '<tr class="grand-total"><td><strong>Grand Total</strong></td>';
+                let grandTotal = 0;
+                weeks.forEach(week => {
+                    let weekTotal = 0;
+                    staff.forEach(person => {
+                        weekTotal += person.weekHours.get(week) || 0;
+                    });
+                    grandTotal += weekTotal;
+                    html += `<td onclick="analyser.showDetails('staff', 'all', ${week})">${Math.round(weekTotal * 100) / 100}h</td>`;
+                });
+                html += `<td onclick="analyser.showDetails('staff', 'all', 'total')">${Math.round(grandTotal * 100) / 100}h</td>`;
+                html += '</tr></tbody></table>';
+
+                document.getElementById('staffTable').innerHTML = html;
+            }
+
+            renderModulesView() {
+                const title = document.getElementById('analysisTitle').value || 'Module Teaching Load Analysis';
+                document.getElementById('modulesTitle').innerHTML = title + ' <span id="moduleWeekRange" class="week-badge"></span>';
+                this.updateWeekRangeDisplay();
+
+                const modules = this.getSortedModules();
+                const weeks = this.filteredWeekNumbers;
+                
+                if (weeks.length === 0) {
+                    document.getElementById('modulesTable').innerHTML = '<p class="error-message">No weeks selected. Please adjust the week range.</p>';
+                    return;
+                }
+
+                let html = '<table><thead><tr>';
+                
+                // Headers with sort indicators
+                html += `<th onclick="analyser.sortModules('code')" class="${this.sortState.modules.column === 'code' ? 'sort-' + this.sortState.modules.direction : ''}">Module Code</th>`;
+                html += `<th onclick="analyser.sortModules('title')" class="${this.sortState.modules.column === 'title' ? 'sort-' + this.sortState.modules.direction : ''}">Module Title</th>`;
+                
+                weeks.forEach(week => {
+                    html += `<th onclick="analyser.sortModules(${week})" class="${this.sortState.modules.column === week ? 'sort-' + this.sortState.modules.direction : ''}">Week ${week}</th>`;
+                });
+                
+                html += `<th onclick="analyser.sortModules('total')" class="${this.sortState.modules.column === 'total' ? 'sort-' + this.sortState.modules.direction : ''}">Total</th>`;
+                html += '</tr></thead><tbody>';
+
+                // Module rows
+                modules.forEach(module => {
+                    const total = this.calculateModuleTotalHours(module);
+                    html += '<tr>';
+                    html += `<td><strong>${module.code}</strong></td>`;
+                    html += `<td>${module.title || ''}</td>`;
+                    
+                    weeks.forEach(week => {
+                        const hours = module.weekHours.get(week) || 0;
+                        const colour = this.getColourForHours(hours);
+                        html += `<td class="colour-cell" style="background-color: ${colour}" 
+                                 onclick="analyser.showDetails('module', '${module.code.replace(/'/g, "\\'")}', ${week})">${hours}h</td>`;
+                    });
+                    
+                    const totalColour = this.getColourForHours(total);
+                    html += `<td class="colour-cell" style="background-color: ${totalColour}"
+                             onclick="analyser.showDetails('module', '${module.code.replace(/'/g, "\\'")}', 'total')">${total}h</td>`;
+                    html += '</tr>';
+                });
+
+                // Grand total row
+                html += '<tr class="grand-total"><td colspan="2"><strong>Grand Total</strong></td>';
+                let grandTotal = 0;
+                weeks.forEach(week => {
+                    let weekTotal = 0;
+                    modules.forEach(module => {
+                        weekTotal += module.weekHours.get(week) || 0;
+                    });
+                    grandTotal += weekTotal;
+                    html += `<td onclick="analyser.showDetails('module', 'all', ${week})">${Math.round(weekTotal * 100) / 100}h</td>`;
+                });
+                html += `<td onclick="analyser.showDetails('module', 'all', 'total')">${Math.round(grandTotal * 100) / 100}h</td>`;
+                html += '</tr></tbody></table>';
+
+                document.getElementById('modulesTable').innerHTML = html;
+            }
+
+            getColourForHours(hours) {
+                if (hours === 0) return '#ffffff';
+                if (hours < 2) return '#c6e0b4';
+                if (hours < 4) return '#b4c6e0';
+                if (hours < 6) return '#e0b4c6';
+                if (hours < 8) return '#f4b084';
+                return '#ff8c8c';
+            }
+
+            showDetails(type, identifier, week) {
+                const modal = document.getElementById('modal');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalContent = document.getElementById('modalContent');
+
+                let sessions = [];
+                let entityDisplay = identifier;
+
+                if (type === 'staff') {
+                    if (identifier === 'all') {
+                        sessions = this.sessions;
+                        modalTitle.textContent = `All Staff - ${week === 'total' ? 'Total Hours' : `Week ${week}`}`;
+                    } else {
+                        const staff = this.staffMap.get(identifier);
+                        if (staff) {
+                            sessions = staff.sessions;
+                            modalTitle.textContent = `${identifier} - ${week === 'total' ? 'Total Hours' : `Week ${week}`}`;
+                        }
+                    }
+                } else {
+                    if (identifier === 'all') {
+                        sessions = this.sessions;
+                        modalTitle.textContent = `All Modules - ${week === 'total' ? 'Total Hours' : `Week ${week}`}`;
+                    } else {
+                        const module = this.moduleMap.get(identifier);
+                        if (module) {
+                            sessions = module.sessions;
+                            modalTitle.textContent = `${identifier} - ${week === 'total' ? 'Total Hours' : `Week ${week}`}`;
+                        }
+                    }
+                }
+
+                // Filter sessions for specific week if needed
+                if (week !== 'total') {
+                    const weekNum = parseInt(week);
+                    sessions = sessions.filter(s => s.weekNumbers.includes(weekNum));
+                }
+
+                let content = '';
+                if (sessions.length === 0) {
+                    content = '<p>No sessions found for this selection.</p>';
+                } else {
+                    sessions.forEach(session => {
+                        const hours = session.startTime && session.endTime ? 
+                            (session.endTime - session.startTime).toFixed(1) : 'N/A';
+                        
+                        // Clean up staff display
+                        const staffDisplay = session.staffList ? session.staffList.join(', ') : 'None';
+                        
+                        content += `
+                            <div class="session-detail">
+                                <strong>${session['Module Code'] || 'N/A'} - ${session['Session Title'] || 'Untitled Session'}</strong><br>
+                                📍 Type: ${session['Type'] || 'N/A'}<br>
+                                📅 Day: ${session['Day'] || 'N/A'}, ${session['Start'] || ''} - ${session['End'] || ''}<br>
+                                ⏱ Hours: ${hours}<br>
+                                📍 Location: ${session['Location'] || 'N/A'}<br>
+                                📝 Notes: ${session['Notes'] || 'None'}<br>
+                                👥 Staff: ${staffDisplay}<br>
+                                📊 Weeks: ${session['Weeks'] || 'N/A'}
+                            </div>
+                        `;
+                    });
+                }
+
+                modalContent.innerHTML = content;
+                modal.classList.add('active');
+            }
+
+            switchView(view) {
+                document.getElementById('staffView').style.display = view === 'staff' ? 'block' : 'none';
+                document.getElementById('modulesView').style.display = view === 'modules' ? 'block' : 'none';
+            }
+
+            showAnalysisControls() {
+                document.getElementById('landing').style.display = 'none';
+                document.getElementById('analysisControls').style.display = 'flex';
+                document.getElementById('tabs').style.display = 'flex';
+                document.getElementById('staffView').style.display = 'block';
+            }
+
+            exportToExcel() {
+                const wb = XLSX.utils.book_new();
+                
+                // Staff data
+                const staffData = [];
+                const staff = this.getSortedStaff();
+                const weeks = this.filteredWeekNumbers;
+                
+                // Headers
+                const headers = ['Staff Name', ...weeks.map(w => `Week ${w}`), 'Total'];
+                staffData.push(headers);
+                
+                // Staff rows
+                staff.forEach(person => {
+                    const row = [person.name];
+                    let total = 0;
+                    weeks.forEach(week => {
+                        const hours = person.weekHours.get(week) || 0;
+                        row.push(hours);
+                        total += hours;
+                    });
+                    row.push(total);
+                    staffData.push(row);
+                });
+                
+                // Grand total
+                const grandTotalRow = ['Grand Total'];
+                let grandTotal = 0;
+                weeks.forEach(week => {
+                    let weekTotal = 0;
+                    staff.forEach(person => weekTotal += person.weekHours.get(week) || 0);
+                    grandTotalRow.push(weekTotal);
+                    grandTotal += weekTotal;
+                });
+                grandTotalRow.push(grandTotal);
+                staffData.push(grandTotalRow);
+                
+                const staffSheet = XLSX.utils.aoa_to_sheet(staffData);
+                XLSX.utils.book_append_sheet(wb, staffSheet, 'Staff Loads');
+                
+                // Module data
+                const moduleData = [];
+                const modules = this.getSortedModules();
+                
+                // Module headers
+                const moduleHeaders = ['Module Code', 'Module Title', ...weeks.map(w => `Week ${w}`), 'Total'];
+                moduleData.push(moduleHeaders);
+                
+                // Module rows
+                modules.forEach(module => {
+                    const row = [module.code, module.title || ''];
+                    let total = 0;
+                    weeks.forEach(week => {
+                        const hours = module.weekHours.get(week) || 0;
+                        row.push(hours);
+                        total += hours;
+                    });
+                    row.push(total);
+                    moduleData.push(row);
+                });
+                
+                // Module grand total
+                const moduleGrandTotalRow = ['Grand Total', ''];
+                let moduleGrandTotal = 0;
+                weeks.forEach(week => {
+                    let weekTotal = 0;
+                    modules.forEach(module => weekTotal += module.weekHours.get(week) || 0);
+                    moduleGrandTotalRow.push(weekTotal);
+                    moduleGrandTotal += weekTotal;
+                });
+                moduleGrandTotalRow.push(moduleGrandTotal);
+                moduleData.push(moduleGrandTotalRow);
+                
+                const moduleSheet = XLSX.utils.aoa_to_sheet(moduleData);
+                XLSX.utils.book_append_sheet(wb, moduleSheet, 'Module Loads');
+                
+                // Save file
+                const title = document.getElementById('analysisTitle').value || 'timetable-analysis';
+                XLSX.writeFile(wb, `${title.replace(/[^a-z0-9]/gi, '_')}.xlsx`);
+            }
+
+            exportToPNG() {
+                const element = document.querySelector('.table-container:not([style*="display: none"])');
+                if (element) {
+                    html2canvas(element, {
+                        scale: 2,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        allowTaint: true,
+                        useCORS: true
+                    }).then(canvas => {
+                        const link = document.createElement('a');
+                        const title = document.getElementById('analysisTitle').value || 'analysis';
+                        link.download = `${title.replace(/[^a-z0-9]/gi, '_')}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }).catch(error => {
+                        console.error('PNG export failed:', error);
+                        alert('Failed to export PNG. Please try again.');
+                    });
+                }
+            }
+        }
+
+        // Initialise the analyser
+        const analyser = new TimetableAnalyser();
+    </script>
+</body>
+</html>
