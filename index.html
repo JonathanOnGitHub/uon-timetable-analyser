@@ -632,8 +632,8 @@
   <div class="header-logo">
     <div class="logo-mark">TL</div>
     <div>
-      <div class="header-title">University of Nottingham Teaching Load Analyser</div>
-      <div class="header-sub">University Timetable Analytics</div>
+      <div class="header-title">Teaching Load Analyser</div>
+      <div class="header-sub">University of Nottingham Timetable Analytics</div>
     </div>
   </div>
   <div class="header-badge">All data processed locally — nothing leaves your browser</div>
@@ -647,7 +647,7 @@
     <div class="hero-eyebrow">Teaching Analytics Tool</div>
     <h1 class="hero-h1">Analyse staff teaching loads from timetable files</h1>
     <p class="hero-desc">
-      Upload exported HTML timetable files from your university timetabling system. The tool parses session data, calculates weekly contact hours, and generates interactive heatmap grids for staff and modules. There are alternatve versions <a href="https://uon-timetable-analyser.co.uk/Deepseek_v0.2.html">here</a> and <a href="https://uon-timetable-analyser.co.uk/Claude_v0.2.html">here</a> (latter with estimated financial costings).
+      Upload exported HTML timetable files from your university timetabling system. The tool parses session data, calculates weekly contact hours, and generates interactive heatmap grids for staff and modules.
     </p>
     <div class="privacy-box">
       <span>🔒</span>
@@ -725,6 +725,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="staff">👤 Staff View</button>
     <button class="tab-btn" data-tab="modules">📚 Module View</button>
+    <button class="tab-btn" data-tab="types">🏷️ Type View</button>
   </div>
 
   <div id="tab-staff">
@@ -745,6 +746,7 @@
     <p style="margin-top:8px;font-size:0.73rem;color:var(--muted);">
       All figures are <strong>staff-hours</strong>: a session shared between two staff members counts as 2 hours in totals.
       The Grand Total is the sum of all individual staff rows.
+      The <em>realistic hours</em> toggle applies to this view only — it deduplicates overlapping sessions per person per day, which is a per-staff concept and cannot be applied to module or type aggregations.
     </p>
   </div>
 
@@ -763,6 +765,24 @@
     <p style="margin-top:8px;font-size:0.73rem;color:var(--muted);">
       All figures are <strong>staff-hours</strong>: a session shared between two staff members counts as 2 hours.
       Module row totals and the Grand Total therefore match those in the Staff view.
+    </p>
+  </div>
+
+  <div id="tab-types" style="display:none">
+    <div class="controls-bar">
+      <label>Sort by:</label>
+      <button class="btn btn-outline btn-sm" id="sortTypeName">Name</button>
+      <button class="btn btn-outline btn-sm" id="sortTypeTotal">Total Hours</button>
+      <div class="spacer"></div>
+      <span class="sort-info" id="typeSortInfo"></span>
+    </div>
+    <div class="grid-wrap" id="typeGridWrap">
+      <div class="empty-state"><div class="es-icon">📋</div>Loading…</div>
+    </div>
+    <div class="legend" id="typeLegend"></div>
+    <p style="margin-top:8px;font-size:0.73rem;color:var(--muted);">
+      All figures are <strong>staff-hours</strong> by session type. This view shows the intensity profile of delivery — useful for demonstrating where staff-intensive session types dominate.
+      Types are taken directly from the timetable data; inconsistent labelling will appear as separate rows.
     </p>
   </div>
 </div>
@@ -802,6 +822,10 @@ let allModules = [];
 
 let staffSort = { col: 'total', dir: -1 };
 let modSort = { col: 'total', dir: -1 };
+let typeSort = { col: 'total', dir: -1 };
+
+let typeData = {}; // { type: { week: [sessions] } }
+let allTypes = [];
 
 // =============================================
 // FILE HANDLING
@@ -1027,6 +1051,27 @@ function aggregateData(sessions, weekFrom, weekTo, realistic) {
   allStaff = Object.keys(staffData).sort();
   allModules = Object.keys(moduleData).sort();
 
+  // Type aggregation — staff-hours per session type per week
+  typeData = {};
+  for (const sess of sessions) {
+    const filteredWeeks = sess.weeks.filter(w => w >= weekFrom && w <= weekTo);
+    if (filteredWeeks.length === 0) continue;
+    const typeKey = (sess.type || '').trim() || 'Undefined';
+    if (!typeData[typeKey]) typeData[typeKey] = {};
+    for (const w of filteredWeeks) {
+      if (!typeData[typeKey][w]) typeData[typeKey][w] = [];
+      // Push one copy per staff member for staff-hours accounting
+      for (let _i = 0; _i < sess.staff.length; _i++) {
+        typeData[typeKey][w].push(sess);
+      }
+    }
+  }
+  allTypes = Object.keys(typeData).sort((a, b) => {
+    if (a === 'Undefined') return 1;
+    if (b === 'Undefined') return -1;
+    return a.localeCompare(b);
+  });
+
   // Collect all weeks
   const weekSet = new Set();
   for (const s of sessions) {
@@ -1215,6 +1260,18 @@ function renderModGrid() {
     `Sorted by: ${modSort.col === 'name' ? 'Name' : modSort.col === 'total' ? 'Total Hours' : 'Week '+modSort.col} (${modSort.dir > 0 ? 'asc' : 'desc'})`;
 }
 
+
+function renderTypeGrid() {
+  const result = buildGrid(typeData, allTypes, allWeeks, typeSort, false);
+  const wrap = document.getElementById('typeGridWrap');
+  if (typeof result === 'string') { wrap.innerHTML = result; return; }
+  wrap.innerHTML = result.html;
+  document.getElementById('typeLegend').innerHTML = result.legendHtml;
+  attachGridEvents(wrap, typeData, 'type');
+  document.getElementById('typeSortInfo').textContent =
+    `Sorted by: ${typeSort.col === 'name' ? 'Name' : typeSort.col === 'total' ? 'Total Hours' : 'Week '+typeSort.col} (${typeSort.dir > 0 ? 'asc' : 'desc'})`;
+}
+
 function attachGridEvents(wrap, dataMap, type) {
   wrap.querySelectorAll('.data-cell, .name-cell').forEach(cell => {
     cell.addEventListener('click', () => {
@@ -1237,6 +1294,10 @@ function attachGridEvents(wrap, dataMap, type) {
         if (staffSort.col === col) staffSort.dir *= -1;
         else { staffSort.col = col; staffSort.dir = -1; }
         renderStaffGrid();
+      } else if (type === 'type') {
+        if (typeSort.col === col) typeSort.dir *= -1;
+        else { typeSort.col = col; typeSort.dir = -1; }
+        renderTypeGrid();
       } else {
         if (modSort.col === col) modSort.dir *= -1;
         else { modSort.col = col; modSort.dir = -1; }
@@ -1248,6 +1309,10 @@ function attachGridEvents(wrap, dataMap, type) {
         if (staffSort.col === w) staffSort.dir *= -1;
         else { staffSort.col = w; staffSort.dir = -1; }
         renderStaffGrid();
+      } else if (type === 'type') {
+        if (typeSort.col === w) typeSort.dir *= -1;
+        else { typeSort.col = w; typeSort.dir = -1; }
+        renderTypeGrid();
       } else {
         if (modSort.col === w) modSort.dir *= -1;
         else { modSort.col = w; modSort.dir = -1; }
@@ -1275,10 +1340,12 @@ function openModal(entity, week, dataMap, type) {
   const entities = entity === 'all' ? Object.keys(dataMap) : [entity];
   const weeks    = (week === 'total' || week === undefined) ? allWeeks : [+week];
 
+  // Realistic mode only applies to staff view (it's a per-person concept)
+  const applyRealistic = (type === 'staff') && realisticMode;
   let totalHours = 0;
   for (const e of entities) {
     for (const w of weeks) {
-      totalHours += calcHours(dataMap[e]?.[w], realisticMode);
+      totalHours += calcHours(dataMap[e]?.[w], applyRealistic);
     }
   }
 
@@ -1296,10 +1363,10 @@ function openModal(entity, week, dataMap, type) {
 
   if (entity === 'all' && week === 'total') {
     title = 'Grand Total';
-    subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}, all weeks`;
+    subtitle = `All ${type === 'staff' ? 'staff' : type === 'modules' ? 'modules' : 'session types'}, all weeks`;
   } else if (entity === 'all') {
     title = `Grand Total — Week ${week}`;
-    subtitle = `All ${type === 'staff' ? 'staff' : 'modules'}`;
+    subtitle = `All ${type === 'staff' ? 'staff' : type === 'modules' ? 'modules' : 'session types'}`;
   } else if (week === 'total') {
     title = entity;
     subtitle = 'All weeks — total';
@@ -1343,6 +1410,35 @@ function openModal(entity, week, dataMap, type) {
   }
   html += '</div>';
 
+  // ── Type breakdown ──
+  // Tally staff-hours by session type from the unique sessions list
+  const typeBreakdown = {};
+  for (const s of uniqueSessions) {
+    const tk = (s.type || '').trim() || 'Undefined';
+    const staffCount = s.staff ? s.staff.length : 1;
+    typeBreakdown[tk] = (typeBreakdown[tk] || 0) + sessionDuration(s) * staffCount;
+  }
+  const typeEntries = Object.entries(typeBreakdown).sort((a,b) => b[1]-a[1]);
+  if (typeEntries.length > 1) {
+    const typeTotal = typeEntries.reduce((s,[,h]) => s+h, 0);
+    html += `<div style="margin-top:1.2rem">
+      <div style="font-family:'Source Serif 4',serif;font-size:0.95rem;color:var(--navy);margin-bottom:0.6rem;font-weight:600">Hours by Session Type</div>
+      <div style="display:flex;flex-direction:column;gap:6px">`;
+    for (const [t, h] of typeEntries) {
+      const pct = typeTotal > 0 ? (h / typeTotal * 100) : 0;
+      html += `<div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px">
+          <span style="font-weight:500;color:var(--navy)">${t}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;color:var(--mid-blue)">${h.toFixed(1)}h &nbsp;<span style="color:var(--muted);font-weight:400">(${pct.toFixed(0)}%)</span></span>
+        </div>
+        <div style="height:8px;background:var(--light-blue);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:var(--mid-blue);border-radius:4px;transition:width 0.3s"></div>
+        </div>
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+
   bodyEl.innerHTML = html;
   overlay.classList.add('open');
 }
@@ -1380,7 +1476,7 @@ analyseBtn.addEventListener('click', async () => {
   const titleInput = document.getElementById('titleInput').value;
   document.getElementById('analyserTitle').textContent = titleInput || 'Teaching Load Analysis';
   document.getElementById('analyserMeta').textContent = 
-    `${parsedSessions.length} sessions · ${allStaff.length} staff · ${allModules.length} modules · Weeks ${allWeeks[0]}–${allWeeks[allWeeks.length-1]} · Parsed from ${uploadedFiles.length} file(s)`;
+    `${parsedSessions.length} sessions · ${allStaff.length} staff · ${allModules.length} modules · ${allTypes.length} session types · Weeks ${allWeeks[0]}–${allWeeks[allWeeks.length-1]} · Parsed from ${uploadedFiles.length} file(s)`;
 
   // Stats
   const totalHours = parsedSessions.reduce((s, sess) => s + sessionDuration(sess), 0);
@@ -1389,6 +1485,7 @@ analyseBtn.addEventListener('click', async () => {
     <div class="stat-card"><div class="sc-v">${allStaff.length}</div><div class="sc-l">Staff members</div></div>
     <div class="stat-card"><div class="sc-v">${allModules.length}</div><div class="sc-l">Modules</div></div>
     <div class="stat-card"><div class="sc-v">${allWeeks.length}</div><div class="sc-l">Weeks with activity</div></div>
+    <div class="stat-card"><div class="sc-v">${allTypes.length}</div><div class="sc-l">Session types</div></div>
     <div class="stat-card"><div class="sc-v">${totalHours.toFixed(0)}</div><div class="sc-l">Total contact hours</div></div>
   `;
 
@@ -1397,6 +1494,7 @@ analyseBtn.addEventListener('click', async () => {
 
   renderStaffGrid();
   renderModGrid();
+  renderTypeGrid();
 
   analyseBtn.disabled = false;
   analyseBtn.textContent = '📊 Analyse Timetable';
@@ -1406,6 +1504,8 @@ analyseBtn.addEventListener('click', async () => {
 document.getElementById('realisticToggle2').addEventListener('change', e => {
   realisticMode = e.target.checked;
   renderStaffGrid();
+  renderModGrid();
+  renderTypeGrid();
 });
 
 // =============================================
@@ -1418,6 +1518,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     currentTab = btn.dataset.tab;
     document.getElementById('tab-staff').style.display = currentTab === 'staff' ? '' : 'none';
     document.getElementById('tab-modules').style.display = currentTab === 'modules' ? '' : 'none';
+    document.getElementById('tab-types').style.display = currentTab === 'types' ? '' : 'none';
   });
 });
 
@@ -1443,6 +1544,17 @@ document.getElementById('sortModTotal').addEventListener('click', () => {
   if (modSort.col === 'total') modSort.dir *= -1;
   else { modSort.col = 'total'; modSort.dir = -1; }
   renderModGrid();
+});
+
+document.getElementById('sortTypeName').addEventListener('click', () => {
+  if (typeSort.col === 'name') typeSort.dir *= -1;
+  else { typeSort.col = 'name'; typeSort.dir = 1; }
+  renderTypeGrid();
+});
+document.getElementById('sortTypeTotal').addEventListener('click', () => {
+  if (typeSort.col === 'total') typeSort.dir *= -1;
+  else { typeSort.col = 'total'; typeSort.dir = -1; }
+  renderTypeGrid();
 });
 
 // =============================================
@@ -1499,6 +1611,30 @@ document.getElementById('btnExportXlsx').addEventListener('click', () => {
   }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(modRows), 'Module Load');
 
+  // Type sheet
+  const typeRows = [['Session Type', ...allWeeks.map(w => `Week ${w}`), 'Total']];
+  for (const t of allTypes) {
+    const row = [t];
+    let total = 0;
+    for (const w of allWeeks) {
+      const h = calcHours(typeData[t]?.[w], false);
+      row.push(h || '');
+      total += h;
+    }
+    row.push(+total.toFixed(2));
+    typeRows.push(row);
+  }
+  const typeTotRow = ['Grand Total'];
+  let typeGt = 0;
+  for (const w of allWeeks) {
+    const wt = allTypes.reduce((s,e) => s + calcHours(typeData[e]?.[w], false), 0);
+    typeTotRow.push(+wt.toFixed(2));
+    typeGt += wt;
+  }
+  typeTotRow.push(+typeGt.toFixed(2));
+  typeRows.push(typeTotRow);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(typeRows), 'Type Load');
+
   // Sessions sheet
   const sessRows = [['Activity','Module Code','Module Title','Session Title','Type','Weeks','Day','Start','End','Staff','Location','Group Info','Notes']];
   for (const s of parsedSessions) {
@@ -1515,9 +1651,11 @@ document.getElementById('btnExportXlsx').addEventListener('click', () => {
 // EXPORT PNG
 // =============================================
 document.getElementById('btnExportPng').addEventListener('click', async () => {
-  const target = currentTab === 'staff' 
+  const target = currentTab === 'staff'
     ? document.getElementById('staffGridWrap')
-    : document.getElementById('modGridWrap');
+    : currentTab === 'modules'
+    ? document.getElementById('modGridWrap')
+    : document.getElementById('typeGridWrap');
   
   const canvas = await html2canvas(target, {
     backgroundColor: '#ffffff',
